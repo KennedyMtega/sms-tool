@@ -5,10 +5,10 @@ import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cookies } from "next/headers"
 
-export default function Dashboard() {
+export default async function Dashboard() {
   // Check if credentials are configured
   const cookieStore = cookies()
-  const credentialsCookie = cookieStore.get("sms_marketing_credentials")
+  const credentialsCookie = await cookieStore.get("sms_marketing_credentials")
   let isConfigured = false
 
   // First check cookies

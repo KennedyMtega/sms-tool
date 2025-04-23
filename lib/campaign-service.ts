@@ -210,3 +210,76 @@ export async function deleteCampaign(id: string): Promise<void> {
     console.error("Failed to delete campaign:", error)
   }
 }
+
+/**
+ * Send campaign messages to multiple recipients using the bulk SMS API
+ * @param campaignId The ID of the campaign
+ * @param recipients Array of recipient objects with contact information
+ * @param message The message to send
+ * @param senderId The sender ID to use
+ * @returns Object containing success/failure counts and detailed results
+ */
+export async function sendCampaignMessages(
+  campaignId: string,
+  recipients: Array<{ id: string; phone: string; name?: string }>,
+  message: string,
+  senderId: string
+): Promise<{
+  total: number;
+  successful: number;
+  failed: number;
+  results: any[];
+}> {
+  try {
+    if (!recipients || recipients.length === 0) {
+      throw new Error("No recipients provided for campaign")
+    }
+
+    // Format messages for bulk sending
+    const messages = recipients.map(recipient => ({
+      from: senderId,
+      to: recipient.phone,
+      text: message,
+      // Include metadata for tracking
+      metadata: {
+        campaignId,
+        contactId: recipient.id
+      }
+    }))
+
+    // Call the bulk SMS API endpoint
+    const response = await fetch("/api/sms/bulk", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ messages }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch (e) {
+        errorData = { error: errorText || "Unknown error" }
+      }
+
+      throw new Error(errorData?.error || `Failed to send campaign messages (Status: ${response.status})`)
+    }
+
+    const result = await response.json()
+    
+    // Update campaign stats (in a real implementation, this would update the database)
+    await updateCampaign(campaignId, {
+      sent_count: result.total,
+      delivered_count: result.successful,
+    })
+
+    return result
+  } catch (error: any) {
+    console.error("Failed to send campaign messages:", error)
+    throw error
+  }
+}

@@ -145,10 +145,77 @@ export function useNextsmsApi() {
     [isAvailable, credentials.nextsmsAuth],
   )
 
+  // Send multiple SMS messages in bulk with rate limiting
+  const sendBulkSMS = useCallback(
+    async (messages: Array<{ from: string; to: string; text: string }>) => {
+      if (!isAvailable) {
+        throw new Error("NextSMS API not configured")
+      }
+
+      if (!Array.isArray(messages) || messages.length === 0) {
+        throw new Error("Invalid messages array. Must provide at least one message.")
+      }
+
+      try {
+        console.log(`Sending bulk SMS with ${messages.length} messages`)
+
+        const response = await fetch("/api/sms/bulk", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ 
+            messages, 
+            auth: credentials.nextsmsAuth 
+          }),
+        })
+
+        console.log("Bulk SMS API response status:", response.status)
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          let errorData
+          try {
+            errorData = JSON.parse(errorText)
+          } catch (e) {
+            errorData = { error: errorText || "Unknown error" }
+          }
+
+          console.error("Bulk SMS API error response:", response.status, errorData)
+
+          // Handle both 401 and 403 as authentication errors
+          if (response.status === 401 || response.status === 403) {
+            const authErrorMessage = errorData?.message === 'Not Authorized'
+              ? 'Authentication failed (Not Authorized). Please check your API credentials.'
+              : 'Authentication failed. Please check your API credentials in the settings page.';
+            throw new Error(authErrorMessage);
+          }
+          
+          // Handle 429 Too Many Requests
+          if (response.status === 429) {
+            throw new Error("Too many requests to NextSMS API. Please wait a moment and try again.");
+          }
+
+          // General error
+          throw new Error(errorData?.error || errorData?.message || errorData?.details?.message || `Failed to send bulk SMS (Status: ${response.status})`)
+        }
+
+        const data = await response.json()
+        return data
+      } catch (error: any) {
+        console.error("Failed to send bulk SMS:", error)
+        throw error
+      }
+    },
+    [isAvailable, credentials.nextsmsAuth],
+  )
+
   return {
     isConfigured: isAvailable,
     getSMSBalance,
     sendSMS,
+    sendBulkSMS
   }
 }
 

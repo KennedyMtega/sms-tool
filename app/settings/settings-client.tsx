@@ -137,40 +137,10 @@ export default function SettingsClient() {
     }
   }, [credentials, credentialsLoading])
 
-  // Fetch SMS balance
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (nextsmsApi.isConfigured) {
-        try {
-          setLoadingBalance(true)
-          setSmsBalance(null) // Reset balance while loading
-          setBalanceError(null) // Clear any previous errors
+  // We'll only fetch SMS balance when the refresh button is clicked
+  // No automatic fetching on component load to prevent excessive API requests
 
-          console.log("Fetching SMS balance...")
-          const balance = await nextsmsApi.getSMSBalance()
-          console.log("SMS balance fetched:", balance)
-          setSmsBalance(balance.sms_balance)
-        } catch (error: any) {
-          console.error("Failed to fetch SMS balance:", error)
-          setBalanceError(error.message || "Failed to fetch SMS balance")
-          // Show toast with error message
-          toast({
-            title: "Failed to fetch SMS balance",
-            description: error.message || "Please check your API credentials",
-            variant: "destructive",
-          })
-        } finally {
-          setLoadingBalance(false)
-        }
-      }
-    }
-
-    if (nextsmsApi.isConfigured && !credentialsLoading) {
-      fetchBalance()
-    }
-  }, [nextsmsApi, credentialsLoading, toast])
-
-  // Manual balance refresh
+  // Manual balance refresh - this is the only way to fetch the balance
   const handleRefreshBalance = async () => {
     if (!nextsmsApi.isConfigured) {
       toast({
@@ -186,6 +156,9 @@ export default function SettingsClient() {
       setSmsBalance(null) // Reset balance while loading
       setBalanceError(null) // Clear any previous errors
 
+      // Add a small delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
       const balance = await nextsmsApi.getSMSBalance()
       setSmsBalance(balance.sms_balance)
 
@@ -399,20 +372,22 @@ export default function SettingsClient() {
     }
   }
 
-  if (isLoading || credentialsLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    )
-  }
+  // Render loading state if needed, but don't use early returns that could cause conditional Hook calls
+  const renderContent = () => {
+    if (isLoading || credentialsLoading) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      )
+    }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-gray-500">Manage your account settings and preferences</p>
-      </div>
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-gray-500">Manage your account settings and preferences</p>
+        </div>
 
       <Tabs defaultValue="api" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
@@ -506,7 +481,7 @@ export default function SettingsClient() {
                     ) : balanceError ? (
                       <div className="mt-1 text-sm text-red-500">{balanceError}</div>
                     ) : (
-                      <div className="mt-1 text-2xl font-bold">{smsBalance !== null ? smsBalance : "N/A"}</div>
+                      <div className="mt-1 text-2xl font-bold">{smsBalance !== null ? smsBalance : "Click refresh to check balance"}</div>
                     )}
                     <p className="text-xs text-gray-500">Available SMS credits</p>
                   </div>
@@ -515,6 +490,7 @@ export default function SettingsClient() {
                     size="sm"
                     onClick={handleRefreshBalance}
                     disabled={loadingBalance || !nextsmsApi.isConfigured}
+                    className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100"
                   >
                     {loadingBalance ? (
                       <>
@@ -522,7 +498,10 @@ export default function SettingsClient() {
                         Refreshing...
                       </>
                     ) : (
-                      "Refresh Balance"
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+                        Check Balance
+                      </>
                     )}
                   </Button>
                 </div>
@@ -810,6 +789,10 @@ export default function SettingsClient() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  )
+      </div>
+    )
+  }
+  
+  // Render the component content
+  return renderContent()
 }
