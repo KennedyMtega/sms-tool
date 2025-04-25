@@ -5,7 +5,7 @@ import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import Sidebar from "@/components/sidebar"
-import { CredentialsProvider } from "@/lib/credentials-context"
+import { CredentialsProvider } from "@/lib/credentials-context" // Remove .tsx extension from "@/lib/credentials-context" // Remove .tsx extension
 import ErrorBoundary from "@/components/error-boundary"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -39,6 +39,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-
-import './globals.css'

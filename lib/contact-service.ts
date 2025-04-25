@@ -44,37 +44,29 @@ export async function getContacts(): Promise<Contact[]> {
     if (error) {
       console.error("Error fetching contacts:", error)
       return SAMPLE_CONTACTS
+      return SAMPLE_CONTACTS // Return sample data if initial fetch failed
     }
 
-    // Try to fetch tags for each contact
-    try {
-      const contactsWithTags = await Promise.all(
-        data.map(async (contact) => {
-          try {
-            const { data: tagData, error: tagError } = await supabase
-              .from("contact_tags")
-              .select("tags:tag_id(id, name)")
-              .eq("contact_id", contact.id)
+    // Fetch tags for each contact
+    const contactsWithTags = await Promise.all(
+      data.map(async (contact: Contact) => { // Add Contact type
+        const { data: tagData, error: tagError } = await supabase
+          .from("contact_tags")
+          .select("tags:tag_id(id, name)")
+          .eq("contact_id", contact.id)
 
-            if (tagError) {
-              console.error("Error fetching tags for contact:", tagError)
-              return { ...contact, tags: [] }
-            }
+        if (tagError) {
+          console.error(`Error fetching tags for contact ${contact.id}:`, tagError)
+          return { ...contact, tags: [] } // Return contact with empty tags on error
+        }
 
-            const tags = tagData.map((t) => t.tags)
-            return { ...contact, tags }
-          } catch (error) {
-            console.error("Error processing tags for contact:", error)
-            return { ...contact, tags: [] }
-          }
-        }),
-      )
+        // Define type for tagData elements
+        const tags = tagData.map((t: { tags: { id: string; name: string } }) => t.tags)
+        return { ...contact, tags }
+      }),
+    )
 
-      return contactsWithTags.length > 0 ? contactsWithTags : SAMPLE_CONTACTS
-    } catch (error) {
-      console.error("Error processing contacts with tags:", error)
-      return data.length > 0 ? data.map((contact) => ({ ...contact, tags: [] })) : SAMPLE_CONTACTS
-    }
+    return contactsWithTags.length > 0 ? contactsWithTags : SAMPLE_CONTACTS
   } catch (error) {
     console.error("Failed to fetch contacts:", error)
     return SAMPLE_CONTACTS
@@ -90,26 +82,23 @@ export async function getContact(id: string): Promise<Contact | null> {
     if (error) {
       console.error("Error fetching contact:", error)
       return SAMPLE_CONTACTS.find((c) => c.id === id) || null
+      return SAMPLE_CONTACTS.find((c) => c.id === id) || null // Return sample data if initial fetch failed
     }
 
-    // Try to fetch tags for the contact
-    try {
-      const { data: tagData, error: tagError } = await supabase
-        .from("contact_tags")
-        .select("tags:tag_id(id, name)")
-        .eq("contact_id", id)
+    // Fetch tags for the contact
+    const { data: tagData, error: tagError } = await supabase
+      .from("contact_tags")
+      .select("tags:tag_id(id, name)")
+      .eq("contact_id", id)
 
-      if (tagError) {
-        console.error("Error fetching tags for contact:", tagError)
-        return { ...data, tags: [] }
-      }
-
-      const tags = tagData.map((t) => t.tags)
-      return { ...data, tags }
-    } catch (error) {
-      console.error("Error processing tags for contact:", error)
-      return { ...data, tags: [] }
+    if (tagError) {
+      console.error(`Error fetching tags for contact ${id}:`, tagError)
+      return { ...data, tags: [] } // Return contact with empty tags on error
     }
+
+    // Define type for tagData elements
+    const tags = tagData.map((t: { tags: { id: string; name: string } }) => t.tags)
+    return { ...data, tags }
   } catch (error) {
     console.error("Failed to fetch contact:", error)
     return SAMPLE_CONTACTS.find((c) => c.id === id) || null

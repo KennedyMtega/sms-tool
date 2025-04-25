@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Wand2, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { useCredentials } from "@/lib/credentials-context"
+import { useCredentials } from "@/lib/credentials-context" 
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAI } from "@/lib/ai-helpers"
@@ -210,7 +210,6 @@ export default function NewMessagePage() {
 
   // Check if AI is configured
   const aiEnabled = ai.isConfigured
-  console.log("Message AI status:", { aiEnabled })
 
   return (
     <div className="space-y-6">
