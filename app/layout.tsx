@@ -1,11 +1,12 @@
 import type React from "react"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
+// import { Toaster } from "@/components/ui/toaster" // Use sonner Toaster
+import { Toaster as SonnerToaster } from "sonner" // Import sonner Toaster
 import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import Sidebar from "@/components/sidebar"
-import { CredentialsProvider } from "@/lib/credentials-context" // Remove .tsx extension from "@/lib/credentials-context" // Remove .tsx extension
+import { CredentialsProvider } from "@/lib/credentials-context" // Import the provider
 import ErrorBoundary from "@/components/error-boundary"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -32,7 +33,7 @@ export default function RootLayout({
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
             </div>
-            <Toaster />
+            <SonnerToaster richColors position="top-right" /> {/* Use Sonner Toaster */}
           </CredentialsProvider>
         </ThemeProvider>
       </body>

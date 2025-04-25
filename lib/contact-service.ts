@@ -11,30 +11,6 @@ export type Contact = {
   tags?: { id: string; name: string }[]
 }
 
-// Sample data to use when Supabase is not available
-const SAMPLE_CONTACTS: Contact[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    phone: "255712345678",
-    email: "john.doe@example.com",
-    last_contacted: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    tags: [{ id: "1", name: "customer" }],
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    phone: "255723456789",
-    email: "jane.smith@example.com",
-    last_contacted: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    tags: [{ id: "2", name: "vip" }],
-  },
-]
-
 export async function getContacts(): Promise<Contact[]> {
   try {
     const supabase = getSupabaseClient()
@@ -43,8 +19,9 @@ export async function getContacts(): Promise<Contact[]> {
 
     if (error) {
       console.error("Error fetching contacts:", error)
-      return SAMPLE_CONTACTS
-      return SAMPLE_CONTACTS // Return sample data if initial fetch failed
+      // Throw the error or return an empty array depending on desired behavior
+      // Returning empty array to avoid breaking UI expecting an array
+      return []
     }
 
     // Fetch tags for each contact
@@ -66,10 +43,34 @@ export async function getContacts(): Promise<Contact[]> {
       }),
     )
 
-    return contactsWithTags.length > 0 ? contactsWithTags : SAMPLE_CONTACTS
+    return contactsWithTags // Return the fetched data (might be empty)
   } catch (error) {
     console.error("Failed to fetch contacts:", error)
-    return SAMPLE_CONTACTS
+    // Throw the error or return an empty array
+    return []
+  }
+}
+
+// Helper function to find a contact by phone number
+export async function getContactByPhone(phone: string): Promise<Contact | null> {
+  try {
+    const supabase = getSupabaseClient()
+    // Normalize phone number for query if necessary, assuming it's already in E.164 format here
+    const { data, error } = await supabase
+      .from("contacts")
+      .select("*")
+      .eq("phone", phone)
+      .maybeSingle() // Use maybeSingle to return null instead of error if not found
+
+    if (error) {
+      console.error("Error fetching contact by phone:", error)
+      return null
+    }
+    // Note: Tags are not fetched here for simplicity, add if needed
+    return data ? { ...data, tags: [] } : null
+  } catch (error) {
+    console.error("Failed to fetch contact by phone:", error)
+    return null
   }
 }
 
@@ -81,8 +82,9 @@ export async function getContact(id: string): Promise<Contact | null> {
 
     if (error) {
       console.error("Error fetching contact:", error)
-      return SAMPLE_CONTACTS.find((c) => c.id === id) || null
-      return SAMPLE_CONTACTS.find((c) => c.id === id) || null // Return sample data if initial fetch failed
+      // If the error is specifically 'PGRST116', it means no rows found, which is expected.
+      // Otherwise, re-throw or handle differently. For now, return null for any error.
+      return null
     }
 
     // Fetch tags for the contact
@@ -101,7 +103,8 @@ export async function getContact(id: string): Promise<Contact | null> {
     return { ...data, tags }
   } catch (error) {
     console.error("Failed to fetch contact:", error)
-    return SAMPLE_CONTACTS.find((c) => c.id === id) || null
+    // Return null if fetching fails
+    return null
   }
 }
 
@@ -121,27 +124,16 @@ export async function createContact(contact: Omit<Contact, "id" | "created_at" |
 
     if (error) {
       console.error("Error creating contact:", error)
-      // Return a mock response with a generated ID
-      return {
-        id: Math.random().toString(36).substring(2, 11),
-        ...contact,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        tags: [],
-      }
+      // Throw the error to be handled by the caller
+      throw error
     }
 
-    return { ...data, tags: [] }
+    // Assuming tags are handled separately or not needed immediately after creation
+    return { ...data, tags: [] } // Return the created contact (tags might be added later)
   } catch (error) {
     console.error("Failed to create contact:", error)
-    // Return a mock response with a generated ID
-    return {
-      id: Math.random().toString(36).substring(2, 11),
-      ...contact,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      tags: [],
-    }
+    // Throw the error to be handled by the caller
+    throw error
   }
 }
 
@@ -161,29 +153,18 @@ export async function updateContact(id: string, updates: Partial<Contact>): Prom
 
     if (error) {
       console.error("Error updating contact:", error)
-      // Return a mock updated contact
-      const contact = SAMPLE_CONTACTS.find((c) => c.id === id)
-      if (!contact) throw new Error("Contact not found")
-
-      return {
-        ...contact,
-        ...updates,
-        updated_at: new Date().toISOString(),
-      }
+      // Throw the error to be handled by the caller
+      throw error
     }
 
+    // Note: Supabase `update` with `.single()` might return null if the row doesn't exist.
+    // The caller should handle the case where `data` might be null.
+    // Also, fetching tags after update might be needed if tags can be updated.
     return data
   } catch (error) {
     console.error("Failed to update contact:", error)
-    // Return a mock updated contact
-    const contact = SAMPLE_CONTACTS.find((c) => c.id === id)
-    if (!contact) throw new Error("Contact not found")
-
-    return {
-      ...contact,
-      ...updates,
-      updated_at: new Date().toISOString(),
-    }
+    // Throw the error to be handled by the caller
+    throw error
   }
 }
 

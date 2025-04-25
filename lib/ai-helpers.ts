@@ -3,7 +3,7 @@
 import { useCredentials } from "./credentials-context"
 import { getUserSettings } from "./settings-service"
 
-type GenerateAIContentProps = {
+export type GenerateAIContentProps = { // Add export here
   prompt: string
   systemPrompt?: string
   apiKey?: string

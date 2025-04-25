@@ -9,19 +9,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Wand2, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { useCredentials } from "@/lib/credentials-context" 
-import { useToast } from "@/components/ui/use-toast"
+import { useCredentials } from "@/lib/credentials-context"
+// import { useToast } from "@/components/ui/use-toast" // Use sonner instead
+import { toast } from "sonner" // Import sonner toast
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAI } from "@/lib/ai-helpers"
-import { useNextsmsApi } from "@/lib/nextsms-api"
-import { createMessage } from "@/lib/message-service"
+import { useAI, type GenerateAIContentProps } from "@/lib/ai-helpers" // Import type
+// import { useNextsmsApi } from "@/lib/nextsms-api" // API call handled in backend route
+// import { createMessage } from "@/lib/message-service" // Message creation handled in backend route
 import { getContact } from "@/lib/contact-service"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getUserSettings } from "@/lib/settings-service"
 
 export default function NewMessagePage() {
   const { isConfigured } = useCredentials()
-  const { toast } = useToast()
+  // const { toast } = useToast() // Use sonner toast directly
   const router = useRouter()
   const searchParams = useSearchParams()
   const contactId = searchParams.get("contact")
@@ -36,8 +37,12 @@ export default function NewMessagePage() {
   const [aiError, setAiError] = useState<string | null>(null)
   const [businessSettings, setBusinessSettings] = useState<any>(null)
 
-  const ai = useAI()
-  const nextsmsApi = useNextsmsApi()
+  // Add explicit type annotation for the return value of useAI
+  const ai: {
+    generateContent: (props: Omit<GenerateAIContentProps, "apiKey">) => Promise<string>;
+    isConfigured: boolean;
+  } = useAI()
+  // const nextsmsApi = useNextsmsApi() // Removed
 
   // Load business settings
   useEffect(() => {
@@ -94,11 +99,10 @@ export default function NewMessagePage() {
     setAiError(null)
 
     if (!ai.isConfigured) {
-      setAiError("OpenRouter API key not configured. Please configure it in the settings page.")
-      toast({
-        title: "API credentials not configured",
-        description: "Please configure your OpenRouter API key in the settings page.",
-        variant: "destructive",
+      const errorMsg = "OpenRouter API key not configured. Please configure it in the settings page."
+      setAiError(errorMsg)
+      toast.error("API credentials not configured", {
+        description: errorMsg,
       })
       return
     }
@@ -120,11 +124,10 @@ export default function NewMessagePage() {
       setMessage(generatedText)
     } catch (error: any) {
       console.error("Failed to generate message:", error)
-      setAiError(error.message || "Failed to generate message")
-      toast({
-        title: "Failed to generate message",
-        description: error.message || "An error occurred while generating the message. Please try again.",
-        variant: "destructive",
+      const errorMsg = error.message || "An error occurred while generating the message. Please try again."
+      setAiError(errorMsg)
+      toast.error("Failed to generate message", {
+        description: errorMsg,
       })
     } finally {
       setIsGenerating(false)
@@ -136,64 +139,64 @@ export default function NewMessagePage() {
     e.preventDefault()
 
     if (!isConfigured) {
-      toast({
-        title: "API credentials not configured",
+      toast.error("API credentials not configured", {
         description: "Please configure your NextSMS credentials in the settings page.",
-        variant: "destructive",
       })
       return
     }
 
     if (!recipient) {
-      toast({
-        title: "Recipient required",
+      toast.error("Recipient required", {
         description: "Please enter a recipient phone number.",
-        variant: "destructive",
       })
       return
     }
 
     if (!message) {
-      toast({
-        title: "Message required",
+      toast.error("Message required", {
         description: "Please enter a message to send.",
-        variant: "destructive",
       })
       return
     }
 
+    setIsSending(true)
+    const toastId = toast.loading("Sending message...")
+
     try {
-      setIsSending(true)
-
-      // Send SMS via NextSMS API
-      await nextsmsApi.sendSMS({
-        from: businessSettings?.businessName?.substring(0, 11) || "N-SMS",
-        to: recipient,
-        text: message,
+      const response = await fetch("/api/sms/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          payload: {
+            from: businessSettings?.businessName?.substring(0, 11) || "N-SMS", // Use business name or default
+            to: recipient,
+            text: message,
+          },
+          // Auth token is handled by the API route via cookie
+        }),
       })
 
-      // Create message record
-      await createMessage({
-        contact_id: contactId || null,
-        campaign_id: null,
-        message,
-        status: "sent",
-        sent_at: new Date().toISOString(),
-      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
 
-      toast({
-        title: "Message sent",
-        description: "Your message has been sent successfully.",
+      // Success! API route handles DB saving.
+      toast.success("Message sent successfully!", {
+        id: toastId,
+        description: "The message has been queued and saved.",
       })
 
       // Redirect to messages page
       router.push("/messages")
-    } catch (error) {
+
+    } catch (error: any) {
       console.error("Failed to send message:", error)
-      toast({
-        title: "Failed to send message",
-        description: "An error occurred while sending the message. Please try again.",
-        variant: "destructive",
+      toast.error("Failed to send message", {
+        id: toastId,
+        description: error.message || "An unexpected error occurred. Please try again.",
       })
     } finally {
       setIsSending(false)

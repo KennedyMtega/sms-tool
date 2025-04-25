@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { createMessage } from '@/lib/message-service'; // Import createMessage
+import { getContactByPhone } from '@/lib/contact-service'; // Import getContactByPhone
 
 // Helper function to get credentials from cookie
 async function getCredentialsFromCookie(): Promise<{ nextsmsAuth: string } | null> { // Make async
@@ -108,10 +110,36 @@ export async function POST(req: Request) {
           }
       }
       return NextResponse.json({ error: errorMessage, details: errorData }, { status: response.status });
-    }
+    } else {
+      // SMS Sent Successfully via NextSMS API
+      const nextSmsResponseData = await response.json(); // Store the successful response
 
-    const responseData = await response.json();
-    return NextResponse.json(responseData);
+      // 8. Save message to Database (after successful send)
+      try {
+        // Find contact ID based on phone number
+        const contact = await getContactByPhone(formattedPhone);
+        const contactId = contact ? contact.id : null;
+
+        // Save the message
+        await createMessage({
+          contact_id: contactId,
+          campaign_id: null, // Assuming single message, not campaign
+          message: payload.text,
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          // created_at is handled by createMessage function
+        });
+        console.log(`Message to ${formattedPhone} saved to database.`);
+
+      } catch (dbError: any) {
+        // Log DB error but don't fail the request as SMS was sent
+        console.error("Error saving sent message to database:", dbError);
+        // Optionally, you could add specific handling or monitoring here
+      }
+
+      // Return the original successful NextSMS response
+      return NextResponse.json(nextSmsResponseData);
+    }
 
   } catch (error: any) {
     console.error("Error in /api/sms/send:", error);

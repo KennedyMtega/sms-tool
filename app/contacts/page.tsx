@@ -1,14 +1,36 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+"use client" // Make this a client component
+
+import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Upload, Download } from "lucide-react"
+import { Plus, Search, Upload, Download, Loader2 } from "lucide-react" // Add Loader2
 import Link from "next/link"
-import { SAMPLE_CONTACTS } from "@/lib/sample-data"
+import { getContacts, type Contact } from "@/lib/contact-service" // Import getContacts and Contact type
 
 export default function ContactsPage() {
-  // Use sample data directly to avoid any loading errors
-  const contacts = SAMPLE_CONTACTS
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        const fetchedContacts = await getContacts()
+        setContacts(fetchedContacts)
+      } catch (err: any) {
+        console.error("Failed to fetch contacts:", err)
+        setError("Failed to load contacts. Please try again later.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchContacts()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -53,9 +75,16 @@ export default function ContactsPage() {
             </select>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-10 text-red-600">{error}</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Email</TableHead>
@@ -70,14 +99,15 @@ export default function ContactsPage() {
                   <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     No contacts found. Add your first contact to get started.
                   </TableCell>
-                </TableRow>
-              ) : (
-                contacts.map((contact) => (
-                  <TableRow key={contact.id}>
-                    <TableCell className="font-medium">
-                      <Link href={`/contacts/${contact.id}`} className="hover:underline">
+                  </TableRow>
+                ) : (
+                  contacts.map((contact) => (
+                    <TableRow key={contact.id}>
+                      <TableCell className="font-medium">
+                        {/* Link to contact details page (assuming it exists or will be created) */}
+                        {/* <Link href={`/contacts/${contact.id}`} className="hover:underline"> */}
                         {contact.name}
-                      </Link>
+                        {/* </Link> */}
                     </TableCell>
                     <TableCell>{contact.phone}</TableCell>
                     <TableCell>{contact.email || "-"}</TableCell>
@@ -96,19 +126,20 @@ export default function ContactsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/contacts/${contact.id}/edit`}>Edit</Link>
+                        <Button variant="outline" size="sm" disabled> {/* Disable Edit for now */}
+                          Edit
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/messages/new?contact=${contact.id}`}>Message</Link>
+                          <Link href={`/messages/new?contact=${contact.id}`}>Message</Link> {/* Keep Message link */}
                         </Button>
                       </div>
                     </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
