@@ -17,6 +17,7 @@ import { useAI } from "@/lib/ai-helpers"
 import { useCredentials } from "@/lib/credentials-context"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getUserSettings } from "@/lib/settings-service"
+y
 import { getContacts, type Contact } from "@/lib/contact-service"
 import { format } from "date-fns"
 
