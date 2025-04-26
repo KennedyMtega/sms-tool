@@ -1,45 +1,56 @@
-import { getSupabaseClient } from "./supabase-client"
-
-export type Message = {
-  id: string
-  contact_id: string | null
-  campaign_id: string | null
-  message: string
-  status: "sent" | "delivered" | "failed" | "received"
-  sent_at: string | null
-  created_at: string
-  contact?: {
-    name: string
-    phone: string
-  }
-}
+import { createClient } from "@/lib/supabase/server"
+import { Message } from "./types"
 
 export async function getMessages(): Promise<Message[]> {
-  try {
-    const supabase = getSupabaseClient()
+  const supabase = createClient()
 
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*, contact:contact_id(name, phone)")
-      .order("created_at", { ascending: false })
+  const { data: messages, error } = await supabase
+    .from("messages")
+    .select(`
+      *,
+      contact:contacts (
+        id,
+        name,
+        phone
+      )
+    `)
+    .order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("Error fetching messages:", error)
-      // Return empty array on error
-      return []
-    }
-
-    return data // Return fetched data (might be empty)
-  } catch (error) {
-    console.error("Failed to fetch messages:", error)
-    // Return empty array on error
+  if (error) {
+    console.error("Error fetching messages:", error)
     return []
   }
+
+  return messages || []
+}
+
+export async function getMessage(id: string): Promise<Message | null> {
+  const supabase = createClient()
+
+  const { data: message, error } = await supabase
+    .from("messages")
+    .select(`
+      *,
+      contact:contacts (
+        id,
+        name,
+        phone
+      )
+    `)
+    .eq("id", id)
+    .single()
+
+  if (error) {
+    console.error("Error fetching message:", error)
+    return null
+  }
+
+  return message
 }
 
 export async function getRecentMessages(limit = 5): Promise<Message[]> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = createClient()
 
     const { data, error } = await supabase
       .from("messages")
@@ -63,7 +74,7 @@ export async function getRecentMessages(limit = 5): Promise<Message[]> {
 
 export async function createMessage(message: Omit<Message, "id" | "created_at">): Promise<Message> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = createClient()
 
     const { data, error } = await supabase
       .from("messages")

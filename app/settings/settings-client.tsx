@@ -297,25 +297,16 @@ export default function SettingsClient() {
     if (!nextsmsApi.isConfigured) {
       toast({
         title: "API credentials not configured",
-        description: "Please save your NextSMS credentials before sending a test message.",
+        description: "Please save your NextSMS credentials first.",
         variant: "destructive",
       })
       return
     }
 
-    if (!testPhoneNumber) {
+    if (!testPhoneNumber || !testMessage) {
       toast({
-        title: "Phone number required",
-        description: "Please enter a phone number to send the test message to.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!testMessage) {
-      toast({
-        title: "Message required",
-        description: "Please enter a message to send.",
+        title: "Missing information",
+        description: "Please enter both phone number and message.",
         variant: "destructive",
       })
       return
@@ -326,12 +317,10 @@ export default function SettingsClient() {
       setTestError(null)
       setTestSuccess(false)
 
-      // Format phone number - ensure it starts with country code and has no spaces or special characters
+      // Format phone number
       let formattedPhone = testPhoneNumber.trim().replace(/\s+/g, "")
-      // If it doesn't start with a plus and has fewer than 12 digits, assume it needs the Tanzania country code
       if (!formattedPhone.startsWith("+") && formattedPhone.length < 12) {
         if (!formattedPhone.startsWith("255")) {
-          // If it starts with 0, replace it with 255
           if (formattedPhone.startsWith("0")) {
             formattedPhone = "255" + formattedPhone.substring(1)
           } else {
@@ -340,31 +329,24 @@ export default function SettingsClient() {
         }
       }
 
-      // Ensure sender ID is valid (alphanumeric and max 11 characters)
-      const senderId = apiCredentials.senderId || "BBASPA"
-      const validSenderId = senderId.substring(0, 11).replace(/[^a-zA-Z0-9]/g, "")
+      const validSenderId = apiCredentials.senderId.substring(0, 11).replace(/[^a-zA-Z0-9]/g, "")
 
-      console.log("Sending test SMS to:", formattedPhone, "from:", validSenderId)
-
-      // Send test SMS using the NextSMS API
       const result = await nextsmsApi.sendSMS({
         from: validSenderId,
         to: formattedPhone,
         text: testMessage,
       })
 
-      console.log("Test SMS result:", result)
       setTestSuccess(true)
       toast({
         title: "Test message sent",
         description: "Your test message has been sent successfully.",
       })
     } catch (error: any) {
-      console.error("Failed to send test message:", error)
-      setTestError(error.message || "Failed to send test message")
+      setTestError("Failed to send test message. Please check your credentials and try again.")
       toast({
         title: "Failed to send test message",
-        description: error.message || "An error occurred while sending the test message. Please try again.",
+        description: "Please check your credentials and try again.",
         variant: "destructive",
       })
     } finally {

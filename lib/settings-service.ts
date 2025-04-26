@@ -1,25 +1,5 @@
 import { getSupabaseClient } from "./supabase-client"
 
-// For demo purposes, we'll use a fixed user ID
-// In a real app, this would come from authentication
-const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001"
-
-// Default settings to use when database is not available
-const DEFAULT_SETTINGS = {
-  user_id: DEMO_USER_ID,
-  business_name: "Acme Inc.",
-  slogan: "Quality products for everyone",
-  business_type: "retail",
-  description: "Acme Inc. is a leading provider of high-quality products for both consumers and businesses.",
-  products: "- Premium Widget: $99.99\n- Basic Widget: $49.99",
-  email_notifications: true,
-  campaign_reports: true,
-  low_balance_alerts: true,
-  ai_auto_reply: true,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-}
-
 export type UserCredentials = {
   user_id: string
   nextsms_username: string
@@ -43,18 +23,24 @@ export type UserSettings = {
   aiAutoReply: boolean
 }
 
-const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001"
-
 export async function getUserCredentials(): Promise<UserCredentials> {
   const supabase = getSupabaseClient()
+  
+  // Get the actual user ID from authentication
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("User not authenticated")
 
-  const { data, error } = await supabase.from("user_credentials").select("*").eq("user_id", DEFAULT_USER_ID).single()
+  const { data, error } = await supabase
+    .from("user_credentials")
+    .select("*")
+    .eq("user_id", user.id)
+    .single()
 
   if (error) {
     console.error("Error fetching user credentials:", error)
     // Return default credentials if not found
     return {
-      user_id: DEFAULT_USER_ID,
+      user_id: user.id,
       nextsms_username: "",
       nextsms_password: "",
       nextsms_auth: "",
@@ -74,7 +60,7 @@ export async function updateUserCredentials(credentials: Partial<UserCredentials
   const { data, error } = await supabase
     .from("user_credentials")
     .update({ ...credentials, updated_at: new Date().toISOString() })
-    .eq("user_id", DEFAULT_USER_ID)
+    .eq("user_id", credentials.user_id)
     .select()
     .single()
 
@@ -90,7 +76,7 @@ export async function getUserSettings(): Promise<UserSettings> {
   try {
     const supabase = getSupabaseClient()
 
-    const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", DEMO_USER_ID).single()
+    const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", "00000000-0000-0000-0000-000000000001").single()
 
     if (error) {
       console.error("Error fetching user settings:", error)
@@ -109,15 +95,15 @@ export async function getUserSettings(): Promise<UserSettings> {
 
       // Return default settings converted to camelCase
       return {
-        businessName: DEFAULT_SETTINGS.business_name,
-        slogan: DEFAULT_SETTINGS.slogan,
-        businessType: DEFAULT_SETTINGS.business_type,
-        description: DEFAULT_SETTINGS.description,
-        products: DEFAULT_SETTINGS.products,
-        emailNotifications: DEFAULT_SETTINGS.email_notifications,
-        campaignReports: DEFAULT_SETTINGS.campaign_reports,
-        lowBalanceAlerts: DEFAULT_SETTINGS.low_balance_alerts,
-        aiAutoReply: DEFAULT_SETTINGS.ai_auto_reply,
+        businessName: "Acme Inc.",
+        slogan: "Quality products for everyone",
+        businessType: "retail",
+        description: "Acme Inc. is a leading provider of high-quality products for both consumers and businesses.",
+        products: "- Premium Widget: $99.99\n- Basic Widget: $49.99",
+        emailNotifications: true,
+        campaignReports: true,
+        lowBalanceAlerts: true,
+        aiAutoReply: true,
       }
     }
 
@@ -126,22 +112,35 @@ export async function getUserSettings(): Promise<UserSettings> {
       try {
         const { data: newData, error: insertError } = await supabase
           .from("user_settings")
-          .insert(DEFAULT_SETTINGS)
+          .insert({
+            user_id: "00000000-0000-0000-0000-000000000001",
+            business_name: "Acme Inc.",
+            slogan: "Quality products for everyone",
+            business_type: "retail",
+            description: "Acme Inc. is a leading provider of high-quality products for both consumers and businesses.",
+            products: "- Premium Widget: $99.99\n- Basic Widget: $49.99",
+            email_notifications: true,
+            campaign_reports: true,
+            low_balance_alerts: true,
+            ai_auto_reply: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
           .select()
           .single()
 
         if (insertError) {
           console.error("Error creating default settings:", insertError)
           return {
-            businessName: DEFAULT_SETTINGS.business_name,
-            slogan: DEFAULT_SETTINGS.slogan,
-            businessType: DEFAULT_SETTINGS.business_type,
-            description: DEFAULT_SETTINGS.description,
-            products: DEFAULT_SETTINGS.products,
-            emailNotifications: DEFAULT_SETTINGS.email_notifications,
-            campaignReports: DEFAULT_SETTINGS.campaign_reports,
-            lowBalanceAlerts: DEFAULT_SETTINGS.low_balance_alerts,
-            aiAutoReply: DEFAULT_SETTINGS.ai_auto_reply,
+            businessName: "Acme Inc.",
+            slogan: "Quality products for everyone",
+            businessType: "retail",
+            description: "Acme Inc. is a leading provider of high-quality products for both consumers and businesses.",
+            products: "- Premium Widget: $99.99\n- Basic Widget: $49.99",
+            emailNotifications: true,
+            campaignReports: true,
+            lowBalanceAlerts: true,
+            aiAutoReply: true,
           }
         }
 
@@ -177,15 +176,15 @@ export async function getUserSettings(): Promise<UserSettings> {
       } catch (error) {
         console.error("Error creating default settings:", error)
         return {
-          businessName: DEFAULT_SETTINGS.business_name,
-          slogan: DEFAULT_SETTINGS.slogan,
-          businessType: DEFAULT_SETTINGS.business_type,
-          description: DEFAULT_SETTINGS.description,
-          products: DEFAULT_SETTINGS.products,
-          emailNotifications: DEFAULT_SETTINGS.email_notifications,
-          campaignReports: DEFAULT_SETTINGS.campaign_reports,
-          lowBalanceAlerts: DEFAULT_SETTINGS.low_balance_alerts,
-          aiAutoReply: DEFAULT_SETTINGS.ai_auto_reply,
+          businessName: "Acme Inc.",
+          slogan: "Quality products for everyone",
+          businessType: "retail",
+          description: "Acme Inc. is a leading provider of high-quality products for both consumers and businesses.",
+          products: "- Premium Widget: $99.99\n- Basic Widget: $49.99",
+          emailNotifications: true,
+          campaignReports: true,
+          lowBalanceAlerts: true,
+          aiAutoReply: true,
         }
       }
     }
@@ -212,15 +211,15 @@ export async function getUserSettings(): Promise<UserSettings> {
   } catch (error) {
     console.error("Failed to get user settings:", error)
     return {
-      businessName: DEFAULT_SETTINGS.business_name,
-      slogan: DEFAULT_SETTINGS.slogan,
-      businessType: DEFAULT_SETTINGS.business_type,
-      description: DEFAULT_SETTINGS.description,
-      products: DEFAULT_SETTINGS.products,
-      emailNotifications: DEFAULT_SETTINGS.email_notifications,
-      campaignReports: DEFAULT_SETTINGS.campaign_reports,
-      lowBalanceAlerts: DEFAULT_SETTINGS.low_balance_alerts,
-      aiAutoReply: DEFAULT_SETTINGS.ai_auto_reply,
+      businessName: "Acme Inc.",
+      slogan: "Quality products for everyone",
+      businessType: "retail",
+      description: "Acme Inc. is a leading provider of high-quality products for both consumers and businesses.",
+      products: "- Premium Widget: $99.99\n- Basic Widget: $49.99",
+      emailNotifications: true,
+      campaignReports: true,
+      lowBalanceAlerts: true,
+      aiAutoReply: true,
     }
   }
 }
@@ -249,7 +248,7 @@ export async function updateUserSettings(settings: Partial<UserSettings>): Promi
     const { data: existingData, error: checkError } = await supabase
       .from("user_settings")
       .select("user_id")
-      .eq("user_id", DEMO_USER_ID)
+      .eq("user_id", "00000000-0000-0000-0000-000000000001")
       .single()
 
     if (checkError && checkError.code !== "PGRST116") {
@@ -264,7 +263,7 @@ export async function updateUserSettings(settings: Partial<UserSettings>): Promi
       const { data: updatedData, error } = await supabase
         .from("user_settings")
         .update(updateData)
-        .eq("user_id", DEMO_USER_ID)
+        .eq("user_id", "00000000-0000-0000-0000-000000000001")
         .select()
         .single()
 
@@ -278,7 +277,7 @@ export async function updateUserSettings(settings: Partial<UserSettings>): Promi
       // Insert new settings
       const { data: newData, error } = await supabase
         .from("user_settings")
-        .insert({ ...DEFAULT_SETTINGS, ...updateData, user_id: DEMO_USER_ID })
+        .insert({ ...updateData, user_id: "00000000-0000-0000-0000-000000000001" })
         .select()
         .single()
 

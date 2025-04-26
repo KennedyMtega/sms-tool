@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Loader2 } from "lucide-react"
+import { Plus, Search, Loader2, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
-import { type Campaign, getCampaigns } from "@/lib/campaign-service"
+import type { Campaign } from "@/lib/campaign-service"
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
 // Sample data to use when no campaigns are available
 const SAMPLE_CAMPAIGNS: Campaign[] = [
@@ -54,27 +55,8 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-
-  // Refresh campaigns data
-  useEffect(() => {
-    const refreshCampaigns = async () => {
-      if (initialCampaigns.length === 0) {
-        try {
-          setLoading(true)
-          const freshCampaigns = await getCampaigns()
-          if (freshCampaigns.length > 0) {
-            setCampaigns(freshCampaigns)
-          }
-        } catch (error) {
-          console.error("Error refreshing campaigns:", error)
-        } finally {
-          setLoading(false)
-        }
-      }
-    }
-
-    refreshCampaigns()
-  }, [initialCampaigns])
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Filter campaigns based on search term and status filter
   const filteredCampaigns = campaigns.filter((campaign) => {
@@ -193,6 +175,9 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/campaigns/${campaign.id}`}>View</Link>
                         </Button>
+                        <Button variant="destructive" size="sm" onClick={() => setDeleteId(campaign.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -202,6 +187,28 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!deleteId} onOpenChange={open => !open && setDeleteId(null)}>
+        <DialogContent>
+          <DialogTitle>Delete Campaign</DialogTitle>
+          <DialogDescription>Are you sure you want to delete this campaign? This action cannot be undone.</DialogDescription>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={async () => {
+              if (!deleteId) return;
+              setDeleting(true);
+              const res = await fetch(`/api/campaigns/${deleteId}/delete`, { method: "DELETE" });
+              if (res.ok) {
+                setCampaigns(campaigns.filter(c => c.id !== deleteId));
+                setDeleteId(null);
+              }
+              setDeleting(false);
+            }} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

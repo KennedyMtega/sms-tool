@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Plus, Search, Upload, Download, Loader2 } from "lucide-react"
 import Link from "next/link"
 import type { Contact } from "@/lib/contact-service"
-import { getContacts } from "@/lib/contact-service"
 
 // Sample data to use when no contacts are available
 const SAMPLE_CONTACTS: Contact[] = [
@@ -40,36 +39,15 @@ interface ContactsClientProps {
 }
 
 export default function ContactsClient({ initialContacts }: ContactsClientProps) {
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts.length > 0 ? initialContacts : SAMPLE_CONTACTS)
-  const [loading, setLoading] = useState(false)
+  const [contacts] = useState<Contact[]>(initialContacts.length > 0 ? initialContacts : SAMPLE_CONTACTS)
+  const [loading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [tagFilter, setTagFilter] = useState("all")
-
-  // Refresh contacts data
-  useEffect(() => {
-    const refreshContacts = async () => {
-      if (initialContacts.length === 0) {
-        try {
-          setLoading(true)
-          const freshContacts = await getContacts()
-          if (freshContacts.length > 0) {
-            setContacts(freshContacts)
-          }
-        } catch (error) {
-          console.error("Error refreshing contacts:", error)
-        } finally {
-          setLoading(false)
-        }
-      }
-    }
-
-    refreshContacts()
-  }, [initialContacts])
 
   // Filter contacts based on search term and tag filter
   const filteredContacts = contacts.filter((contact) => {
     const matchesSearch =
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (typeof contact.name === 'string' && contact.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       contact.phone.includes(searchTerm) ||
       (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase()))
 
@@ -158,7 +136,7 @@ export default function ContactsClient({ initialContacts }: ContactsClientProps)
                   <TableRow key={contact.id}>
                     <TableCell className="font-medium">
                       <Link href={`/contacts/${contact.id}`} className="hover:underline">
-                        {contact.name}
+                        {contact.name && typeof contact.name === 'string' && contact.name.trim() !== '' ? contact.name : "(No Name)"}
                       </Link>
                     </TableCell>
                     <TableCell>{contact.phone}</TableCell>

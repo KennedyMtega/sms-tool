@@ -1,7 +1,8 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-"use client" // Make this a client component
 
 import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -45,7 +46,7 @@ export default function ContactsPage() {
           </Button>
           <Button asChild>
             <Link href="/contacts/new">
-              <Plus className="mr-2 h-4 w-4" /> Add Contact
+              <span><Plus className="mr-2 h-4 w-4" /> Add Contact</span>
             </Link>
           </Button>
         </div>
@@ -114,7 +115,7 @@ export default function ContactsPage() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {contact.tags &&
-                          contact.tags.map((tag) => (
+                          contact.tags.map((tag: { id: string; name: string }) => (
                             <Badge key={tag.id} variant="outline">
                               {tag.name}
                             </Badge>
@@ -122,15 +123,15 @@ export default function ContactsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {contact.last_contacted ? new Date(contact.last_contacted).toLocaleDateString() : "Never"}
+                      <ClientDate dateString={contact.last_contacted} />
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" disabled> {/* Disable Edit for now */}
-                          Edit
+                        <Button variant="outline" size="sm" disabled>
+                          <span>Edit</span>
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/messages/new?contact=${contact.id}`}>Message</Link> {/* Keep Message link */}
+                          <Link href={`/messages/new?contact=${contact.id}`}><span>Message</span></Link>
                         </Button>
                       </div>
                     </TableCell>
@@ -140,8 +141,23 @@ export default function ContactsPage() {
               </TableBody>
             </Table>
           )}
+          {/* Upload contacts from .xls/.xlsx placeholder */}
+          {/* TODO: Implement file upload and parsing logic here */}
         </CardContent>
       </Card>
     </div>
   )
+}
+
+// Client-only date formatting component
+function ClientDate({ dateString }: { dateString: string | null }) {
+  const [formatted, setFormatted] = useState<string>("")
+  useEffect(() => {
+    if (dateString) {
+      setFormatted(new Date(dateString).toLocaleDateString())
+    } else {
+      setFormatted("Never")
+    }
+  }, [dateString])
+  return <span>{formatted}</span>
 }

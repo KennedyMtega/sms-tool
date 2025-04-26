@@ -13,11 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Wand2, Loader2, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
-import { createCampaign } from "@/lib/campaign-service"
 import { useAI } from "@/lib/ai-helpers"
 import { useCredentials } from "@/lib/credentials-context"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getUserSettings } from "@/lib/settings-service"
+import { getContacts, type Contact } from "@/lib/contact-service"
+import { format } from "date-fns"
 
 export default function NewCampaignPage() {
   const { toast } = useToast()
@@ -72,6 +73,19 @@ export default function NewCampaignPage() {
 
   // Audience state
   const [audienceType, setAudienceType] = useState("all")
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([])
+  const [loadingContacts, setLoadingContacts] = useState(false)
+
+  useEffect(() => {
+    if (audienceType === "selected") {
+      setLoadingContacts(true)
+      getContacts().then((data) => {
+        setContacts(data)
+        setLoadingContacts(false)
+      })
+    }
+  }, [audienceType])
 
   // Schedule state
   const [scheduleType, setScheduleType] = useState("now")
@@ -163,14 +177,22 @@ export default function NewCampaignPage() {
     try {
       setIsSaving(true)
 
-      // Create campaign
-      await createCampaign({
-        ...campaignDetails,
-        status: "draft",
-        scheduled_date: null,
-        sent_count: 0,
-        delivered_count: 0,
-        response_count: 0,
+      // Prepare recipients based on audienceType
+      let recipients = [];
+      if (audienceType === "all") {
+        recipients = contacts;
+      } else {
+        recipients = contacts.filter(c => selectedContacts.includes(c.id));
+      }
+      await fetch("/api/campaigns/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...campaignDetails,
+          status: "draft",
+          scheduled_date: null,
+          recipients,
+        })
       })
 
       toast({
@@ -215,14 +237,22 @@ export default function NewCampaignPage() {
     try {
       setIsSaving(true)
 
-      // Create campaign
-      await createCampaign({
-        ...campaignDetails,
-        status: scheduleType === "now" ? "active" : "scheduled",
-        scheduled_date: scheduleType === "scheduled" ? `${scheduleDate}T${scheduleTime}:00:00Z` : null,
-        sent_count: 0,
-        delivered_count: 0,
-        response_count: 0,
+      // Prepare recipients based on audienceType
+      let recipients = [];
+      if (audienceType === "all") {
+        recipients = contacts;
+      } else {
+        recipients = contacts.filter(c => selectedContacts.includes(c.id));
+      }
+      await fetch("/api/campaigns/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...campaignDetails,
+          status: scheduleType === "now" ? "active" : "scheduled",
+          scheduled_date: scheduleType === "scheduled" ? `${scheduleDate}T${scheduleTime}:00:00Z` : null,
+          recipients,
+        })
       })
 
       toast({
@@ -268,6 +298,84 @@ export default function NewCampaignPage() {
   // Check if AI is configured
   const aiEnabled = ai.isConfigured
   console.log("AI status:", { aiEnabled, isConfigured, openrouterApiKey: credentials.openrouterApiKey })
+
+  // Add logic for handleSendNow and handleSchedule
+  const handleSendNow = async () => {
+    // Validate
+    if (!campaignDetails.name || !campaignDetails.message) {
+      toast({ title: "Missing info", description: "Please fill in all campaign details.", variant: "destructive" })
+      return
+    }
+    let recipientIds: string[] = []
+    if (audienceType === "all") {
+      const allContacts = await getContacts()
+      recipientIds = allContacts.map(c => c.id)
+    } else {
+      recipientIds = selectedContacts
+    }
+    if (recipientIds.length === 0) {
+      toast({ title: "No recipients", description: "Please select at least one contact.", variant: "destructive" })
+      return
+    }
+    // Fetch full contact info
+    const allContacts = await getContacts()
+    const recipients = allContacts.filter(c => recipientIds.includes(c.id))
+    // POST to /api/sms/bulk
+    const messages = recipients.map(c => ({
+      to: c.phone,
+      message: campaignDetails.message,
+      metadata: { contactId: c.id }
+    }))
+    const res = await fetch("/api/sms/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(messages)
+    })
+    if (res.ok) {
+      toast({ title: "Campaign sent", description: "Messages are being sent." })
+      router.push("/campaigns")
+    } else {
+      toast({ title: "Failed to send", description: "There was an error sending the campaign.", variant: "destructive" })
+    }
+  }
+
+  const handleSchedule = async () => {
+    // Validate
+    if (!campaignDetails.name || !campaignDetails.message || !scheduleDate || !scheduleTime) {
+      toast({ title: "Missing info", description: "Please fill in all campaign and schedule details.", variant: "destructive" })
+      return
+    }
+    let recipientIds: string[] = []
+    if (audienceType === "all") {
+      const allContacts = await getContacts()
+      recipientIds = allContacts.map(c => c.id)
+    } else {
+      recipientIds = selectedContacts
+    }
+    if (recipientIds.length === 0) {
+      toast({ title: "No recipients", description: "Please select at least one contact.", variant: "destructive" })
+      return
+    }
+    // Save campaign with schedule info and recipients
+    // (Assume you have a createScheduledCampaign API route or function)
+    const scheduledDateTime = `${scheduleDate}T${scheduleTime}`
+    const res = await fetch("/api/campaigns/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...campaignDetails,
+        status: "scheduled",
+        scheduled_date: scheduledDateTime,
+        recipientIds
+      })
+    })
+    if (res.ok) {
+      toast({ title: "Campaign scheduled", description: "Your campaign will be sent at the scheduled time." })
+      router.push("/campaigns")
+    } else {
+      toast({ title: "Failed to schedule", description: "There was an error scheduling the campaign.", variant: "destructive" })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -397,11 +505,56 @@ export default function NewCampaignPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Contacts</SelectItem>
-                    <SelectItem value="tags">Specific Tags</SelectItem>
-                    <SelectItem value="custom">Custom List</SelectItem>
+                    <SelectItem value="selected">Select Contacts</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {audienceType === "selected" && (
+                <div>
+                  {loadingContacts ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <div className="border rounded p-2 mt-2 max-h-64 overflow-y-auto">
+                      <div className="mb-2">
+                        <label className="inline-flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedContacts.length === contacts.length && contacts.length > 0}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setSelectedContacts(contacts.map(c => c.id))
+                              } else {
+                                setSelectedContacts([])
+                              }
+                            }}
+                          />
+                          <span className="ml-2 font-medium">Select All</span>
+                        </label>
+                      </div>
+                      {contacts.map(c => (
+                        <div key={c.id} className="flex items-center mb-1">
+                          <input
+                            type="checkbox"
+                            id={`contact-${c.id}`}
+                            checked={selectedContacts.includes(c.id)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setSelectedContacts([...selectedContacts, c.id])
+                              } else {
+                                setSelectedContacts(selectedContacts.filter(id => id !== c.id))
+                              }
+                            }}
+                          />
+                          <label htmlFor={`contact-${c.id}`} className="ml-2 cursor-pointer">
+                            {c.name} ({c.phone})
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="rounded-md bg-gray-50 p-4">
                 <div className="font-medium">Audience Summary</div>
@@ -477,7 +630,7 @@ export default function NewCampaignPage() {
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Launching...
+                    Launch Campaign
                   </>
                 ) : (
                   "Launch Campaign"
