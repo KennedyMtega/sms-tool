@@ -1,15 +1,15 @@
 import { Suspense } from "react"
-import { SAMPLE_CAMPAIGNS } from "@/lib/sample-data"
-import { SAMPLE_CONTACTS } from "@/lib/sample-data"
-import { SAMPLE_MESSAGES } from "@/lib/sample-data"
 import DashboardClient from "./dashboard-client"
 import DashboardSkeleton from "@/components/skeletons/dashboard-skeleton"
+import type { Campaign } from "@/lib/campaign-service"
+import type { Contact } from "@/lib/contact-service"
+import type { Message } from "@/lib/types"
 
 export default function DashboardPage() {
-  // Use sample data directly to avoid any loading errors
-  const campaigns = SAMPLE_CAMPAIGNS
-  const contacts = SAMPLE_CONTACTS
-  const recentMessages = SAMPLE_MESSAGES.slice(0, 5)
+  // Use empty arrays or fallback logic instead of sample data
+  const campaigns: Campaign[] = []
+  const contacts: Contact[] = []
+  const recentMessages: Message[] = []
   const userSettings = {
     businessName: "Acme Inc.",
     slogan: "Quality products for everyone",
