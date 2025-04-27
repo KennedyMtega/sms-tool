@@ -49,10 +49,24 @@ interface CampaignsClientProps {
   initialCampaigns: Campaign[]
 }
 
+export function useCampaignsPolling(initialCampaigns: Campaign[]) {
+  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns)
+
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      const res = await fetch("/api/campaigns")
+      if (res.ok) setCampaigns(await res.json())
+    }
+    fetchCampaigns()
+    const interval = setInterval(fetchCampaigns, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return campaigns
+}
+
 export default function CampaignsClient({ initialCampaigns }: CampaignsClientProps) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(
-    initialCampaigns.length > 0 ? initialCampaigns : SAMPLE_CAMPAIGNS,
-  )
+  const campaigns = useCampaignsPolling(initialCampaigns)
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -183,7 +197,7 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
                     <TableCell>{campaign.response_count.toLocaleString()}</TableCell>
                     <TableCell>
                       {campaign.scheduled_date
-                        ? format(new Date(campaign.scheduled_date), "yyyy-MM-dd")
+                        ? format(new Date(campaign.scheduled_date), "yyyy-MM-dd HH:mm")
                         : format(new Date(campaign.created_at), "yyyy-MM-dd")}
                     </TableCell>
                     <TableCell>
@@ -217,11 +231,8 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
               if (!deleteId) return;
               setDeleting(true);
               const res = await fetch(`/api/campaigns/${deleteId}/delete`, { method: "DELETE" });
-              if (res.ok) {
-                setCampaigns(campaigns.filter(c => c.id !== deleteId));
-                setDeleteId(null);
-              }
               setDeleting(false);
+              setDeleteId(null);
             }} disabled={deleting}>
               {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
             </Button>
@@ -347,8 +358,6 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
                 })
               });
               if (res.ok) {
-                const newCampaign = await res.json();
-                setCampaigns([newCampaign, ...campaigns]);
                 setShowModal(false);
                 setCampaignName("");
                 setSenderId("N-SMS");

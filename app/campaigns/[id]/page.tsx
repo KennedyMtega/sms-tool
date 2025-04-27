@@ -55,14 +55,14 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               <div className="text-sm font-medium text-gray-500">Sender ID</div>
               <div>{campaign.sender_id}</div>
             </div>
-            <div>
-              <div className="text-sm font-medium text-gray-500">Created</div>
-              <div>{format(new Date(campaign.created_at), "PPP")}</div>
+            <div className="space-y-1">
+              <div className="font-medium">Created</div>
+              <div>{format(new Date(campaign.created_at), "PPPp")}</div>
             </div>
             {campaign.scheduled_date && (
-              <div>
-                <div className="text-sm font-medium text-gray-500">Scheduled Date</div>
-                <div>{format(new Date(campaign.scheduled_date), "PPP")}</div>
+              <div className="space-y-1">
+                <div className="font-medium">Scheduled Date</div>
+                <div>{format(new Date(campaign.scheduled_date), "PPPp")}</div>
               </div>
             )}
             <div>

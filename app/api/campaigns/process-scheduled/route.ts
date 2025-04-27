@@ -4,13 +4,12 @@ import { sendBulkSMS } from "@/lib/nextsms-service";
 
 export async function POST() {
   const supabase = getSupabaseClient();
-  const now = new Date().toISOString();
-  // Fetch scheduled campaigns due for sending
+  const now = new Date();
+  // Fetch scheduled campaigns due for sending (date and time)
   const { data: campaigns, error } = await supabase
     .from("campaigns")
     .select("*")
-    .eq("status", "scheduled")
-    .lte("scheduled_date", now);
+    .eq("status", "scheduled");
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -19,7 +18,10 @@ export async function POST() {
   }
   let processed = 0;
   for (const campaign of campaigns) {
-    // Fetch recipients for this campaign (assume you have a campaign_recipients table or store recipients in campaign)
+    if (!campaign.scheduled_date) continue;
+    const scheduled = new Date(campaign.scheduled_date);
+    if (scheduled > now) continue; // Only process if scheduled time has passed
+    // Fetch recipients for this campaign
     const { data: recipients } = await supabase
       .from("campaign_recipients")
       .select("contact_id, phone")
