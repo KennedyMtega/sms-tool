@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowRight, MessageSquare, Users, Calendar, BarChart3, AlertCircle } from "lucide-react"
+import { ArrowRight, MessageSquare, Users, Calendar, BarChart3, AlertCircle, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useCredentials } from "@/lib/credentials-context"
 import { useNextsmsApi } from "@/lib/nextsms-api"
@@ -138,7 +138,25 @@ export default function DashboardClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">SMS Balance</CardTitle>
-            <BarChart3 className="h-4 w-4 text-gray-500" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={async () => {
+                setLoadingBalance(true)
+                try {
+                  const balance = await nextsmsApi.getSMSBalance()
+                  setSmsBalance(balance.sms_balance)
+                } catch (error) {
+                  console.error("Failed to fetch SMS balance:", error)
+                } finally {
+                  setLoadingBalance(false)
+                }
+              }}
+              aria-label="Refresh SMS Balance"
+              disabled={loadingBalance}
+            >
+              <RefreshCw className={loadingBalance ? "animate-spin" : ""} />
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -289,6 +307,33 @@ export default function DashboardClient({
               </div>
             </TabsContent>
           </Tabs>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Campaign Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {campaigns.length === 0 ? (
+              <div className="py-4 text-center text-gray-500">No campaign data available</div>
+            ) : (
+              campaigns.slice(0, 5).map((campaign) => (
+                <div key={campaign.id} className="flex items-center justify-between border-b pb-2">
+                  <div>
+                    <div className="font-medium">{campaign.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)} • {campaign.sent_count} sent
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/campaigns/${campaign.id}`}>View</Link>
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

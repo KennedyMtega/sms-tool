@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Upload, Download, Loader2 } from "lucide-react" // Add Loader2
+import { Plus, Search, Upload, Download, Loader2, X, Trash2, Pencil } from "lucide-react" // Add Loader2, X, Trash2, Pencil
 import Link from "next/link"
 import { getContacts, type Contact } from "@/lib/contact-service" // Import getContacts and Contact type
 
@@ -14,6 +14,13 @@ export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingContact, setEditingContact] = useState<Contact | null>(null)
+  const [showDeleteId, setShowDeleteId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchContacts = async () => {
@@ -32,6 +39,52 @@ export default function ContactsPage() {
 
     fetchContacts()
   }, [])
+
+  // Add edit and delete handlers
+  const handleEdit = (contact: Contact) => setEditingContact(contact)
+  const handleDelete = (id: string) => setShowDeleteId(id)
+
+  const saveEdit = async () => {
+    if (!editingContact) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/contacts/${editingContact.id}/edit`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameRef.current?.value,
+          phone: phoneRef.current?.value,
+          email: emailRef.current?.value,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setContacts((prev) => prev.map((c) => c.id === editingContact.id ? { ...c, ...data.contact } : c))
+        setEditingContact(null)
+      } else {
+        alert(data.error || "Failed to update contact")
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!showDeleteId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/contacts/${showDeleteId}/delete`, { method: "DELETE" })
+      if (res.ok) {
+        setContacts((prev) => prev.filter((c) => c.id !== showDeleteId))
+        setShowDeleteId(null)
+      } else {
+        const data = await res.json()
+        alert(data.error || "Failed to delete contact")
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -127,11 +180,14 @@ export default function ContactsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" disabled>
-                          <span>Edit</span>
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(contact)}>
+                          <Pencil className="w-4 h-4 mr-1" /> <span>Edit</span>
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(contact.id)}>
+                          <Trash2 className="w-4 h-4 mr-1" /> <span>Delete</span>
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/messages/new?contact=${contact.id}`}><span>Message</span></Link>
+                          <Link href={`/messages/new?contact=${contact.id}`}> <span>Message</span> </Link>
                         </Button>
                       </div>
                     </TableCell>
@@ -145,6 +201,44 @@ export default function ContactsPage() {
           {/* TODO: Implement file upload and parsing logic here */}
         </CardContent>
       </Card>
+
+      {/* Edit Modal */}
+      {editingContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <button className="absolute top-2 right-2" onClick={() => setEditingContact(null)}>
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold mb-4">Edit Contact</h2>
+            <div className="space-y-4">
+              <input ref={nameRef} defaultValue={editingContact.name ?? ""} className="w-full border rounded px-3 py-2" placeholder="Name" />
+              <input ref={phoneRef} defaultValue={editingContact.phone ?? ""} className="w-full border rounded px-3 py-2" placeholder="Phone" />
+              <input ref={emailRef} defaultValue={editingContact.email ?? ""} className="w-full border rounded px-3 py-2" placeholder="Email" />
+            </div>
+            <div className="flex justify-end mt-6 space-x-2">
+              <Button variant="outline" onClick={() => setEditingContact(null)} disabled={saving}>Cancel</Button>
+              <Button onClick={saveEdit} disabled={saving}>Save</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm relative">
+            <button className="absolute top-2 right-2" onClick={() => setShowDeleteId(null)}>
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-bold mb-4">Delete Contact?</h2>
+            <p>Are you sure you want to delete this contact? This action cannot be undone.</p>
+            <div className="flex justify-end mt-6 space-x-2">
+              <Button variant="outline" onClick={() => setShowDeleteId(null)} disabled={deleting}>Cancel</Button>
+              <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
