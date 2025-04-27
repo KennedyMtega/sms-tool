@@ -145,7 +145,6 @@ export async function sendSMS(params: {
       message: params.message,
       status: "sent",
       sent_at: new Date().toISOString(),
-      to_number: formattedPhone,
       nextsms_message_id: data.messageId,
     })
 
@@ -227,7 +226,6 @@ export async function sendBulkSMS(messages: BulkSMSMessage[]): Promise<BulkSMSRe
             message: msg.message,
             status: "sent",
             sent_at: new Date().toISOString(),
-            to_number: formattedPhone,
             nextsms_message_id: data.messageId,
           })
 

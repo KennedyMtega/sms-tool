@@ -155,7 +155,6 @@ async function updateCampaignStats(
     message: r.message,
     status: r.success ? ("sent" as const) : ("failed" as const),
     sent_at: new Date().toISOString(),
-    to_number: r.to,
     nextsms_message_id: r.messageId,
   }))
 
