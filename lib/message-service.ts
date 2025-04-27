@@ -99,3 +99,21 @@ export async function createMessage(message: Omit<Message, "id" | "created_at">)
     throw error
   }
 }
+
+// Fetch only the latest message per recipient, paginated, with contact info
+export async function getConversations({ limit = 20, offset = 0 } = {}): Promise<any[]> {
+  const supabase = createClient()
+
+  // Use a SQL query to get the latest message per contact (recipient) and join contacts
+  const { data, error } = await supabase.rpc('latest_messages_per_contact', { limit_param: limit, offset_param: offset })
+
+  if (error) {
+    console.error("Error fetching conversations:", error)
+    return []
+  }
+
+  // For each message, fetch contact info if not already included
+  // If your RPC already joins contacts, you can skip this
+  // Otherwise, map and fetch contact info here (or adjust the RPC to join contacts)
+  return data || []
+}

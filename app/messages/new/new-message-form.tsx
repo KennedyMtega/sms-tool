@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
+import { X, Sparkles } from "lucide-react"
 
 interface NewMessageFormProps {
   contacts: Contact[]
@@ -23,6 +23,9 @@ export function NewMessageForm({ contacts }: NewMessageFormProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
   const [sending, setSending] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiMessage, setAiMessage] = useState("")
+  const [showAiPreview, setShowAiPreview] = useState(false)
 
   const filteredContacts = contacts.filter(
     (contact) =>
@@ -85,6 +88,21 @@ export function NewMessageForm({ contacts }: NewMessageFormProps) {
     }
   }
 
+  const handleEnhanceWithAI = async () => {
+    if (!message.trim()) {
+      toast.error("Please enter a message to enhance")
+      return
+    }
+    setAiLoading(true)
+    setShowAiPreview(false)
+    // TODO: Call AI API to enhance message
+    setTimeout(() => {
+      setAiMessage(message + " (AI-enhanced example)")
+      setShowAiPreview(true)
+      setAiLoading(false)
+    }, 1200)
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -135,16 +153,41 @@ export function NewMessageForm({ contacts }: NewMessageFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="message">Message</Label>
-            <Textarea
-              id="message"
-              placeholder="Type your message here..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="min-h-[100px]"
-            />
+            <div className="flex gap-2 items-end">
+              <Textarea
+                id="message"
+                placeholder="Type your message here..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="min-h-[100px]"
+                disabled={aiLoading}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mb-2"
+                onClick={handleEnhanceWithAI}
+                disabled={aiLoading || !message.trim()}
+                title="Enhance with AI"
+              >
+                <Sparkles className="h-5 w-5 text-primary" />
+              </Button>
+            </div>
             <div className="text-sm text-gray-500">
               {message.length} characters ({Math.ceil(message.length / 160)} SMS)
             </div>
+            {aiLoading && <div className="text-xs text-blue-500 mt-1">Enhancing message with AI...</div>}
+            {showAiPreview && (
+              <div className="mt-2 p-3 border rounded bg-blue-50">
+                <div className="font-semibold mb-1">AI-Enhanced Suggestion:</div>
+                <div className="mb-2 whitespace-pre-line">{aiMessage}</div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setMessage(aiMessage); setShowAiPreview(false); }}>Use This</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowAiPreview(false)}>Dismiss</Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

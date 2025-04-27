@@ -5,85 +5,71 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import MessagesTableSkeleton from "@/components/skeletons/messages-table-skeleton"
+import type { Message } from "@/lib/types"
 
-interface Conversation {
-  recipientId: string
-  recipientName: string
-  recipientPhone: string
-  lastMessage: string
-  lastStatus: string
-  lastTimestamp: string
-  unreadCount: number
-}
-
-export default function MessagesClient({ conversations }: { conversations: Conversation[] }) {
+export default function MessagesClient({ initialConversations }: { initialConversations: any[] }) {
+  const [conversations, setConversations] = useState<any[]>(initialConversations)
   const [search, setSearch] = useState("")
-  const filtered = conversations.filter(conv =>
-    (typeof conv.recipientName === 'string' ? conv.recipientName : '').toLowerCase().includes(search.toLowerCase()) ||
-    (typeof conv.recipientPhone === 'string' ? conv.recipientPhone : '').includes(search)
-  )
+
+  const filtered = conversations.filter(conv => {
+    const name = conv.contact?.name || ""
+    const phone = conv.contact?.phone || conv.contact_id || ""
+    return name.toLowerCase().includes(search.toLowerCase()) || phone.includes(search)
+  })
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Chats</h1>
-        <Button asChild>
+    <div className="w-screen min-h-screen bg-gray-50 flex flex-col items-center py-8 px-2">
+      <div className="w-full max-w-5xl flex items-center justify-between mb-8">
+        <h1 className="text-4xl font-bold">Chats</h1>
+        <Button asChild size="lg">
           <Link href="/messages/new">New Message</Link>
         </Button>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Inbox</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex items-center gap-2">
-            <Input placeholder="Search chats..." className="max-w-sm" value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <div className="divide-y">
-            {filtered.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No conversations yet. Start a new message!</div>
-            ) : (
-              filtered.map((conv) => (
-                <Link
-                  key={conv.recipientId || conv.recipientPhone || conv.lastTimestamp}
-                  href={`/messages/chat/${conv.recipientId}`}
-                  className="flex items-center gap-4 py-4 hover:bg-accent px-2 rounded transition"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium truncate">{conv.recipientName}</span>
-                      <span className="text-xs text-muted-foreground"><RelativeTime date={conv.lastTimestamp} /></span>
+      <div className="w-full max-w-5xl flex-1 flex flex-col">
+        <Card className="w-full flex-1 flex flex-col">
+          <CardHeader>
+            <CardTitle>Inbox</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col">
+            <div className="mb-6 flex items-center gap-2">
+              <Input placeholder="Search chats..." className="max-w-md" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-4 w-full">
+              {filtered.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">No conversations yet. Start a new message!</div>
+              ) : (
+                filtered.map((conv) => (
+                  <Link
+                    key={conv.contact_id || conv.created_at}
+                    href={`/messages/chat/${conv.contact_id}`}
+                    className="block bg-white rounded-lg shadow hover:shadow-lg transition border p-5 w-full"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <span className="text-lg font-semibold truncate">{conv.contact_name || "No Name"}</span>
+                      <span className="text-sm text-gray-500 truncate">{conv.contact_phone || ""}</span>
+                      <span className="text-base text-gray-700 truncate mt-2">{conv.message}</span>
                     </div>
-                    <div className="text-sm text-muted-foreground truncate max-w-xs">{conv.lastMessage}</div>
-                  </div>
-                  {conv.unreadCount > 0 && (
-                    <span key={"unread-" + conv.recipientId} className="ml-2 bg-primary text-white rounded-full px-2 py-0.5 text-xs">{conv.unreadCount}</span>
-                  )}
-                </Link>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                    <div className="flex justify-end mt-4">
+                      <span className="text-xs text-muted-foreground">{formatRelativeTime(conv.created_at)}</span>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
 
-function RelativeTime({ date }: { date: string }) {
-  const [relative, setRelative] = useState("")
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      import("date-fns").then(({ formatDistanceToNow }) => {
-        setRelative(formatDistanceToNow(new Date(date), { addSuffix: true }))
-      })
-    }
-    const interval = setInterval(() => {
-      import("date-fns").then(({ formatDistanceToNow }) => {
-        setRelative(formatDistanceToNow(new Date(date), { addSuffix: true }))
-      })
-    }, 60000)
-    return () => clearInterval(interval)
-  }, [date])
-  return <>{relative}</>
+function formatRelativeTime(date: string) {
+  if (!date) return ""
+  const d = new Date(date)
+  const now = new Date()
+  const diff = Math.floor((now.getTime() - d.getTime()) / 1000)
+  if (diff < 60) return "just now"
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`
+  return `${Math.floor(diff / 86400)} day${Math.floor(diff / 86400) > 1 ? "s" : ""} ago`
 } 
