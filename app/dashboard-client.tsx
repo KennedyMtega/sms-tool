@@ -29,12 +29,34 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const { credentials, isConfigured, isLoading: credentialsLoading } = useCredentials()
   const nextsmsApi = useNextsmsApi()
-  const [campaigns] = useState<Campaign[]>(initialCampaigns)
-  const [contacts] = useState<Contact[]>(initialContacts)
-  const [recentMessages] = useState<Message[]>(initialRecentMessages)
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [recentMessages, setRecentMessages] = useState<Message[]>([])
   const [userSettings] = useState<any>(initialUserSettings)
   const [smsBalance, setSmsBalance] = useState<number | null>(null)
   const [loadingBalance, setLoadingBalance] = useState(false)
+
+  // Fetch dashboard data from API
+  const fetchDashboardData = async () => {
+    try {
+      const [campaignsRes, contactsRes, messagesRes] = await Promise.all([
+        fetch("/api/campaigns"),
+        fetch("/api/contacts"),
+        fetch("/api/messages"),
+      ])
+      setCampaigns(await campaignsRes.json())
+      setContacts(await contactsRes.json())
+      setRecentMessages(await messagesRes.json())
+    } catch (err) {
+      setCampaigns([])
+      setContacts([])
+      setRecentMessages([])
+    }
+  }
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
 
   // Fetch SMS balance
   useEffect(() => {

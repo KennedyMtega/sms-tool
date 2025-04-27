@@ -50,10 +50,8 @@ interface CampaignsClientProps {
 }
 
 export default function CampaignsClient({ initialCampaigns }: CampaignsClientProps) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(
-    initialCampaigns.length > 0 ? initialCampaigns : SAMPLE_CAMPAIGNS,
-  )
-  const [loading, setLoading] = useState(false)
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -72,6 +70,24 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const aiButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Fetch campaigns from API
+  const fetchCampaigns = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/campaigns")
+      const data = await res.json()
+      setCampaigns(data)
+    } catch (err) {
+      setCampaigns([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCampaigns()
+  }, [])
 
   useEffect(() => {
     if (showModal) {
@@ -352,6 +368,7 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
                 setScheduleType("now");
                 setScheduleDate("");
                 setScheduleTime("09:00");
+                await fetchCampaigns();
               } else {
                 setModalError("Failed to create campaign.");
               }
