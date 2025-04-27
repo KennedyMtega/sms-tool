@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { Message } from "./types"
+export type { Message }
 
 export async function getMessages(): Promise<Message[]> {
   const supabase = createClient()

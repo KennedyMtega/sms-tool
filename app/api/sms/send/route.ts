@@ -19,7 +19,6 @@ export async function POST(request: Request) {
       status: "sent",
       sent_at: new Date().toISOString(),
       to_number: to,
-      from_id: "BBASPA",
       nextsms_message_id: smsResult.messageId,
       created_at: new Date().toISOString(),
       campaign_id: metadata?.campaignId || null,

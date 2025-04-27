@@ -102,7 +102,7 @@ export default function Sidebar() {
         {isMobileMenuOpen && (
           <div className="fixed inset-0 z-40 bg-black bg-opacity-50" onClick={toggleMobileMenu}>
             <div
-              className="fixed inset-y-0 left-0 z-50 w-64 bg-white py-4 px-3 overflow-y-auto"
+              className="fixed inset-y-0 left-0 z-50 w-4/5 max-w-xs bg-white py-4 px-3 overflow-y-auto shadow-lg"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6 px-4">

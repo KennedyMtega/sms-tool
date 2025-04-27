@@ -111,16 +111,16 @@ export default function ContactsPage() {
           <CardDescription>Manage your contacts and their information</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex items-center gap-2">
-            <div className="relative flex-1">
+          <div className="mb-4 flex flex-col sm:flex-row items-center gap-2">
+            <div className="relative flex-1 w-full">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <input
                 type="search"
                 placeholder="Search contacts..."
-                className="w-full rounded-md border border-gray-300 pl-8 py-2 px-3"
+                className="w-full rounded-md border border-gray-300 pl-8 py-2 px-3 text-sm sm:text-base"
               />
             </div>
-            <select className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <select className="rounded-md border border-gray-300 px-3 py-2 text-sm w-full sm:w-auto mt-2 sm:mt-0">
               <option value="all">All Tags</option>
               <option value="customer">Customer</option>
               <option value="prospect">Prospect</option>
@@ -128,15 +128,8 @@ export default function ContactsPage() {
               <option value="inactive">Inactive</option>
             </select>
           </div>
-
-          {isLoading ? (
-            <div className="flex justify-center items-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            </div>
-          ) : error ? (
-            <div className="text-center py-10 text-red-600">{error}</div>
-          ) : (
-            <Table>
+          <div className="table-container overflow-x-auto">
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow>
                 <TableHead>Name</TableHead>
@@ -196,7 +189,7 @@ export default function ContactsPage() {
                 )}
               </TableBody>
             </Table>
-          )}
+          </div>
           {/* Upload contacts from .xls/.xlsx placeholder */}
           {/* TODO: Implement file upload and parsing logic here */}
         </CardContent>

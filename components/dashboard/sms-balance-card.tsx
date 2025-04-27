@@ -46,7 +46,7 @@ export default function SmsBalanceCard() {
   }
 
   return (
-    <Card>
+    <Card className="w-full max-w-md mx-auto md:max-w-none">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium">SMS Balance</CardTitle>
         <Button 
