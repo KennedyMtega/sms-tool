@@ -231,13 +231,6 @@ export default function DashboardClient({
                   <div className="text-xs text-muted-foreground">Start a new SMS campaign</div>
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-auto flex-col gap-2 p-4">
-                <Link href="/analytics">
-                  <BarChart3 className="h-6 w-6" />
-                  <div className="text-sm font-medium">Analytics</div>
-                  <div className="text-xs text-muted-foreground">View campaign performance</div>
-                </Link>
-              </Button>
             </div>
           </CardContent>
         </Card>

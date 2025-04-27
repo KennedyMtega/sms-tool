@@ -49,24 +49,10 @@ interface CampaignsClientProps {
   initialCampaigns: Campaign[]
 }
 
-export function useCampaignsPolling(initialCampaigns: Campaign[]) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns)
-
-  useEffect(() => {
-    const fetchCampaigns = async () => {
-      const res = await fetch("/api/campaigns")
-      if (res.ok) setCampaigns(await res.json())
-    }
-    fetchCampaigns()
-    const interval = setInterval(fetchCampaigns, 30000)
-    return () => clearInterval(interval)
-  }, [])
-
-  return campaigns
-}
-
 export default function CampaignsClient({ initialCampaigns }: CampaignsClientProps) {
-  const campaigns = useCampaignsPolling(initialCampaigns)
+  const [campaigns, setCampaigns] = useState<Campaign[]>(
+    initialCampaigns.length > 0 ? initialCampaigns : SAMPLE_CAMPAIGNS,
+  )
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
