@@ -1,6 +1,8 @@
 export interface Contact {
   id: string
-  name: string | null
+  name: string
+  firstName?: string | null
+  lastName?: string | null
   phone: string
   email: string | null
   last_contacted: string | null

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createCampaign } from "@/lib/campaign-service";
 import { getSupabaseClient } from "@/lib/supabase-client";
-import { sendBulkSMS } from "@/lib/nextsms-service";
+import { sendBulkSMS, sendSMS } from "@/lib/nextsms-service";
+import { replacePersonalizationVariables } from "@/lib/personalization";
+import { NextSMSError } from "@/lib/nextsms-service";
 
 export async function POST(request: Request) {
   try {
@@ -22,17 +24,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing message" }, { status: 400 });
     }
     // Validate recipients structure
-    const validRecipients = recipients.filter(r => r && r.phone && r.id);
+    const validRecipients = recipients.filter(r => r && r.phone && r.id && r.name);
     if (validRecipients.length === 0) {
-      console.error("Recipients missing phone or id", recipients);
-      return NextResponse.json({ error: "Recipients missing phone or id" }, { status: 400 });
+      console.error("Recipients missing phone, id, or name", recipients);
+      return NextResponse.json({ error: "Recipients missing phone, id, or name" }, { status: 400 });
     }
     // Save campaign to Supabase
     let campaign;
     try {
       campaign = await createCampaign({ ...campaignData, sender_id, status, scheduled_date, message });
     } catch (err: any) {
-      console.error("Failed to create campaign:", err.message || err);
+      console.error("Failed to create campaign:", err);
       return NextResponse.json({ error: err.message || "Failed to create campaign" }, { status: 500 });
     }
     // Save recipients to campaign_recipients table for scheduled campaigns
@@ -47,25 +49,49 @@ export async function POST(request: Request) {
       console.error("Failed to save recipients:", err.message || err);
       return NextResponse.json({ error: err.message || "Failed to save recipients" }, { status: 500 });
     }
-    // Send SMS immediately if not scheduled
-    if (status === "active") {
-      try {
-        const smsMessages = validRecipients.map((r: any) => ({
-          to: r.phone,
-          message,
-          senderId: sender_id,
-          metadata: { campaignId: campaign.id, contactId: r.id }
+    // Send messages
+    try {
+      if (validRecipients.length === 1) {
+        // Single recipient - use single SMS
+        const personalizedMessage = replacePersonalizationVariables(message, validRecipients[0]);
+        await sendSMS({
+          to: validRecipients[0].phone,
+          message: personalizedMessage,
+          metadata: {
+            campaignId: campaign.id,
+            contactId: validRecipients[0].id
+          }
+        });
+      } else {
+        // Multiple recipients - use bulk SMS
+        const messages = validRecipients.map(recipient => ({
+          to: recipient.phone,
+          message: replacePersonalizationVariables(message, recipient),
+          metadata: {
+            campaignId: campaign.id,
+            contactId: recipient.id
+          }
         }));
-        const smsResult = await sendBulkSMS(smsMessages);
-        console.log("SMS sent result:", smsResult);
-      } catch (err: any) {
-        console.error("Failed to send SMS:", err.message || err);
-        return NextResponse.json({ error: err.message || "Failed to send SMS" }, { status: 500 });
+        await sendBulkSMS(messages);
       }
+
+      return NextResponse.json({ success: true, campaign });
+    } catch (error: any) {
+      console.error("Failed to send campaign messages:", error);
+      
+      // Update campaign status to failed
+      await supabase
+        .from("campaigns")
+        .update({ status: "failed" })
+        .eq("id", campaign.id);
+
+      if (error instanceof NextSMSError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ error: error.message || "Failed to send campaign messages" }, { status: 500 });
     }
-    return NextResponse.json(campaign);
   } catch (error: any) {
-    console.error("General error in campaign creation:", error.message || error);
+    console.error("Campaign creation error:", error);
     return NextResponse.json({ error: error.message || "Failed to create campaign" }, { status: 500 });
   }
 } 

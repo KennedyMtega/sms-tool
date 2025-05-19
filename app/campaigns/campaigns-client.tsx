@@ -12,6 +12,13 @@ import { format, formatISO } from "date-fns"
 import type { Campaign } from "@/lib/campaign-service"
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { getContacts } from "@/lib/contact-service"
+import { useCredentials } from "@/lib/credentials-context"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Sample data to use when no campaigns are available
 const SAMPLE_CAMPAIGNS: Campaign[] = [
@@ -70,6 +77,7 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const aiButtonRef = useRef<HTMLButtonElement>(null)
+  const { credentials } = useCredentials();
 
   // Fetch campaigns from API
   const fetchCampaigns = async () => {
@@ -244,41 +252,78 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
 
       {/* Create/Edit Campaign Modal */}
       <Dialog open={showModal} onOpenChange={(open: boolean) => setShowModal(open)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto mx-auto my-8 w-full max-w-lg p-4">
           <DialogTitle>Create New Campaign</DialogTitle>
           <DialogDescription>Fill in the details below to create and send a new campaign.</DialogDescription>
           <div className="space-y-4">
             <Input placeholder="Campaign Name" value={campaignName} onChange={e => setCampaignName(e.target.value)} />
-            <Input placeholder="Sender ID" value={senderId} onChange={e => setSenderId(e.target.value)} maxLength={11} />
+            <Input placeholder="Sender ID" value={credentials?.senderId || senderId} readOnly className="bg-gray-100 cursor-not-allowed" />
+            <p className="text-xs text-gray-500">This sender ID is configured in your <Link href='/settings' className='underline'>settings</Link>.</p>
             <div className="flex items-center justify-between">
               <label htmlFor="message" className="font-medium mb-1">Message</label>
-              <Button
-                ref={aiButtonRef}
-                size="sm"
-                variant="outline"
-                disabled={aiLoading}
-                onClick={async () => {
-                  setAiError(null);
-                  setAiLoading(true);
-                  try {
-                    const res = await fetch("/api/ai/generate-campaign-message", { method: "POST" });
-                    if (res.ok) {
-                      const { message: aiMsg } = await res.json();
-                      setMessage(aiMsg);
-                    } else {
+              <div className="flex gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Personalization
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => {
+                      const textarea = document.getElementById('message') as HTMLTextAreaElement;
+                      if (!textarea) return;
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const text = textarea.value;
+                      const newText = text.substring(0, start) + '{{name}}' + text.substring(end);
+                      setMessage(newText);
+                      setTimeout(() => { textarea.focus(); textarea.selectionEnd = start + 7; }, 0);
+                    }}>
+                      {"{{name}} - Contact Name"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      const textarea = document.getElementById('message') as HTMLTextAreaElement;
+                      if (!textarea) return;
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const text = textarea.value;
+                      const newText = text.substring(0, start) + '{{phone}}' + text.substring(end);
+                      setMessage(newText);
+                      setTimeout(() => { textarea.focus(); textarea.selectionEnd = start + 8; }, 0);
+                    }}>
+                      {"{{phone}} - Phone Number"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  ref={aiButtonRef}
+                  size="sm"
+                  variant="outline"
+                  disabled={aiLoading}
+                  onClick={async () => {
+                    setAiError(null);
+                    setAiLoading(true);
+                    try {
+                      const res = await fetch("/api/ai/generate-campaign-message", { method: "POST" });
+                      if (res.ok) {
+                        const { message: aiMsg } = await res.json();
+                        setMessage(aiMsg);
+                      } else {
+                        setAiError("Failed to generate message.");
+                      }
+                    } catch (err) {
                       setAiError("Failed to generate message.");
                     }
-                  } catch (err) {
-                    setAiError("Failed to generate message.");
-                  }
-                  setAiLoading(false);
-                }}
-              >
-                {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Generate with AI"}
-              </Button>
+                    setAiLoading(false);
+                  }}
+                >
+                  {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Generate with AI"}
+                </Button>
+              </div>
             </div>
             {aiError && <div className="text-red-500 text-xs mb-1">{aiError}</div>}
-            <textarea className="w-full border rounded p-2" rows={3} placeholder="Message" value={message} onChange={e => setMessage(e.target.value)} />
+            <textarea id="message" className="w-full border rounded p-2" rows={3} placeholder="Message" value={message} onChange={e => setMessage(e.target.value)} />
             <div>
               <div className="font-medium mb-1">Audience</div>
               <div className="border rounded p-2 max-h-32 overflow-y-auto">

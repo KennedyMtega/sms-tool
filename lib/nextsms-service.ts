@@ -4,7 +4,6 @@ import { cookies } from "next/headers"
 // Constants for NextSMS credentials
 const NEXTSMS_USERNAME = "Kentstudiostz"
 const NEXTSMS_PASSWORD = "Helphelp@2023"
-const NEXTSMS_SENDER_ID = "BBASPA"
 
 // Create Basic auth token
 const NEXTSMS_AUTH = `Basic ${Buffer.from(`${NEXTSMS_USERNAME}:${NEXTSMS_PASSWORD}`).toString('base64')}`
@@ -41,32 +40,55 @@ export class NextSMSError extends Error {
 export async function getNextSMSCredentials(): Promise<NextSMSCredentials> {
   const supabase = createClient()
 
-  // Get session from cookies
-  const cookieStore = await cookies()
-  const supabaseToken = cookieStore.get("sb-token")?.value
+  try {
+    // First try to get credentials from the user_credentials table
+    const { data: credentials, error } = await supabase
+      .from("user_credentials")
+      .select("nextsms_username, nextsms_password, nextsms_auth, sender_id")
+      .single()
 
-  if (!supabaseToken) {
-    throw new NextSMSError("User not authenticated")
-  }
+    if (error) {
+      console.error("Error fetching credentials:", error)
+      // If no credentials found, use the default credentials
+      return {
+        nextsms_username: NEXTSMS_USERNAME,
+        nextsms_password: NEXTSMS_PASSWORD,
+        nextsms_auth: NEXTSMS_AUTH,
+        sender_id: "BBASPA" // Default sender ID
+      }
+    }
 
-  const { data: credentials, error } = await supabase
-    .from("user_credentials")
-    .select("nextsms_username, nextsms_password, nextsms_auth, sender_id")
-    .single()
+    if (!credentials) {
+      throw new NextSMSError("No credentials found in database")
+    }
 
-  if (error) {
-    throw new NextSMSError(`Failed to fetch NextSMS credentials: ${error.message}`)
-  }
+    // If we have credentials but no auth token, generate one
+    if (!credentials.nextsms_auth && credentials.nextsms_username && credentials.nextsms_password) {
+      const auth = `Basic ${Buffer.from(`${credentials.nextsms_username}:${credentials.nextsms_password}`).toString('base64')}`
+      return {
+        nextsms_username: credentials.nextsms_username,
+        nextsms_password: credentials.nextsms_password,
+        nextsms_auth: auth,
+        sender_id: credentials.sender_id || "BBASPA"
+      }
+    }
 
-  if (!credentials || !credentials.nextsms_auth || !credentials.sender_id) {
-    throw new NextSMSError("NextSMS credentials not found or incomplete")
-  }
-
-  return {
-    nextsms_username: credentials.nextsms_username || "",
-    nextsms_password: credentials.nextsms_password || "",
-    nextsms_auth: credentials.nextsms_auth,
-    sender_id: credentials.sender_id
+    // Return the credentials we found
+    return {
+      nextsms_username: credentials.nextsms_username || "",
+      nextsms_password: credentials.nextsms_password || "",
+      nextsms_auth: credentials.nextsms_auth || NEXTSMS_AUTH,
+      sender_id: credentials.sender_id || "BBASPA"
+    }
+  } catch (error) {
+    console.error("Error in getNextSMSCredentials:", error)
+    // Fallback to default credentials if something goes wrong
+    return {
+      nextsms_username: NEXTSMS_USERNAME,
+      nextsms_password: NEXTSMS_PASSWORD,
+      nextsms_auth: NEXTSMS_AUTH,
+      sender_id: "BBASPA"
+    }
   }
 }
 
@@ -91,16 +113,21 @@ export async function sendSMS(params: {
 }): Promise<{ messageId: string }> {
   // Format phone number
   const formattedPhone = await formatPhoneNumber(params.to)
+  const credentials = await getNextSMSCredentials()
+
+  if (!credentials.sender_id) {
+    throw new NextSMSError("Sender ID not configured. Please set it in your settings.")
+  }
 
   const response = await fetch("https://messaging-service.co.tz/api/sms/v1/text/single", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "Authorization": NEXTSMS_AUTH
+      "Authorization": credentials.nextsms_auth
     },
     body: JSON.stringify({
-      from: NEXTSMS_SENDER_ID,
+      from: credentials.sender_id,
       to: formattedPhone,
       text: params.message
     })
@@ -173,6 +200,11 @@ export async function sendBulkSMS(messages: BulkSMSMessage[]): Promise<BulkSMSRe
   const BATCH_SIZE = 10
   const DELAY_BETWEEN_BATCHES = 1000 // 1 second
 
+  const credentials = await getNextSMSCredentials()
+  if (!credentials.sender_id) {
+    throw new NextSMSError("Sender ID not configured. Please set it in your settings.")
+  }
+
   const results: NextSMSResult[] = []
   for (let i = 0; i < messages.length; i += BATCH_SIZE) {
     const batch = messages.slice(i, i + BATCH_SIZE)
@@ -187,10 +219,10 @@ export async function sendBulkSMS(messages: BulkSMSMessage[]): Promise<BulkSMSRe
           headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": NEXTSMS_AUTH
+            "Authorization": credentials.nextsms_auth
           },
           body: JSON.stringify({
-            from: NEXTSMS_SENDER_ID,
+            from: credentials.sender_id,
             to: formattedPhone,
             text: msg.message
           })

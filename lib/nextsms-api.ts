@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 
 import { useCredentials } from "./credentials-context"
+import { getUserCredentials } from './credentials-service'
 
 export function useNextsmsApi() {
   const { credentials, isConfigured } = useCredentials()
@@ -219,74 +220,52 @@ export function useNextsmsApi() {
   }
 }
 
-// Server-side function to send SMS
-export async function sendSMSServer(options: { from: string; to: string; text: string; auth: string }) {
-  try {
-    const { from, to, text, auth } = options;
+export type SMSParams = {
+  from: string
+  to: string
+  text: string
+  auth: string
+}
 
-    // Validate auth format
-    if (!auth.startsWith('Basic ')) {
-      throw new Error('Invalid authentication format');
+export async function sendSMSServer(params: SMSParams): Promise<void> {
+  try {
+    // Get credentials for sender ID
+    const { credentials } = await getUserCredentials()
+    if (!credentials.sender_id) {
+      throw new Error('No sender ID configured')
     }
 
     // Format phone number to E.164
-    let formattedPhone = to.trim().replace(/[^0-9]/g, '');
+    let formattedPhone = params.to.trim().replace(/[^0-9]/g, '')
     if (!formattedPhone.startsWith('255')) {
       if (formattedPhone.startsWith('0')) {
-        formattedPhone = '255' + formattedPhone.substring(1);
+        formattedPhone = '255' + formattedPhone.substring(1)
       } else {
-        formattedPhone = '255' + formattedPhone;
+        formattedPhone = '255' + formattedPhone
       }
     }
 
-    // Validate sender ID
-    const validSenderId = from.substring(0, 11).replace(/[^a-zA-Z0-9]/g, '');
-
-    const response = await fetch('https://messaging-service.co.tz/api/sms/v1/text/single', {
+    // Use configured sender ID
+    const response = await fetch('https://api.nextsms.com/v1/sms', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': auth,
+        'Authorization': `Bearer ${credentials.api_key}`
       },
       body: JSON.stringify({
-        from: validSenderId,
+        from: credentials.sender_id,
         to: formattedPhone,
-        text: text,
-      }),
-    });
+        text: params.text
+      })
+    })
 
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch (e) {
-        errorData = { error: errorText || "Unknown error" };
-      }
-
-      // Handle specific error cases from the documentation
-      switch(errorData.error) {
-        case 'REJECTED_NOT_ENOUGH_CREDITS':
-          throw new Error('Not enough SMS credits. Please top up your account.');
-        case 'REJECTED_SENDER':
-          throw new Error('Sender ID has been blacklisted. Please use a different sender ID.');
-        case 'REJECTED_DESTINATION':
-          throw new Error('Destination number is blacklisted.');
-        case 'REJECTED_INVALID_DESTINATION':
-          throw new Error('Invalid phone number format.');
-        default:
-          if (response.status === 401) {
-            throw new Error('Authentication failed. Please check your API credentials.');
-          }
-          throw new Error(errorData.error || errorData.details || 'Failed to send SMS');
-      }
+      const error = await response.json()
+      throw new Error(`Failed to send SMS: ${error.message || response.statusText}`)
     }
-
-    return await response.json();
-  } catch (error: any) {
-    console.error('SMS sending error:', error);
-    throw error;
+  } catch (error) {
+    console.error('Error sending SMS:', error)
+    throw error
   }
 }
 

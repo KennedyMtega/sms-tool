@@ -1,12 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Users, ArrowUpRight, Calendar, BarChart3, AlertCircle, RefreshCw } from "lucide-react"
+import { MessageSquare, Users, ArrowUpRight, Calendar, BarChart3, AlertCircle, RefreshCw, Plus } from "lucide-react"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import { cookies } from "next/headers"
 import { useState } from "react"
 import SmsBalanceCard from "@/components/SmsBalanceCard"
+import { WelcomeMessage } from "@/components/WelcomeMessage"
 
 export default async function Dashboard() {
   // Fetch all stats and config from Supabase
@@ -29,12 +30,15 @@ export default async function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button asChild>
-          <Link href="/campaigns/new">
-            Create Campaign <ArrowUpRight className="ml-2 h-4 w-4" />
+        <WelcomeMessage businessName={settings?.business_name || "SMS Marketing"} />
+        <div className="flex items-center gap-4">
+          <Link href="/contacts/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Contact
+            </Button>
           </Link>
-        </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

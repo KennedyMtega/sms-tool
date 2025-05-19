@@ -10,32 +10,50 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Wand2, Loader2, AlertCircle } from "lucide-react"
+import { Wand2, Loader2, AlertCircle, Info, Plus } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { useAI } from "@/lib/ai-helpers"
 import { useCredentials } from "@/lib/credentials-context"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { getUserSettings } from "@/lib/settings-service"
-import { getContacts, type Contact } from "@/lib/contact-service"
+import { getUserSettings } from "@/lib/settings"
+import { getContacts } from "@/lib/contact-service"
+import type { Contact } from "@/lib/types"
 import { format } from "date-fns"
+import { extractPersonalizationVariables } from "@/lib/personalization"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function NewCampaignPage() {
   const { toast } = useToast()
   const router = useRouter()
-  const { isConfigured, credentials } = useCredentials()
+  const { isConfigured, credentials } = useCredentials() as any
   const ai = useAI()
 
   const [activeTab, setActiveTab] = useState("details")
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
-  const [businessSettings, setBusinessSettings] = useState<any>(null)
+  const [businessSettings, setBusinessSettings] = useState<{
+    businessName: string;
+    businessType: string;
+    products: string;
+    description: string;
+    slogan?: string;
+    emailNotifications?: boolean;
+    campaignReports?: boolean;
+    lowBalanceAlerts?: boolean;
+    aiAutoReply?: boolean;
+  } | null>(null)
 
   // Campaign details state
   const [campaignDetails, setCampaignDetails] = useState({
     name: "",
-    sender_id: credentials.senderId || "N-SMS",
+    sender_id: credentials?.senderId || "N-SMS",
     message: "",
   })
 
@@ -44,14 +62,15 @@ export default function NewCampaignPage() {
     const loadSettings = async () => {
       try {
         const settings = await getUserSettings()
-        setBusinessSettings(settings)
-
-        // Update sender_id with business name if available
-        if (settings.businessName) {
-          setCampaignDetails((prev) => ({
-            ...prev,
-            sender_id: credentials.senderId || settings.businessName.substring(0, 11),
-          }))
+        if (settings) {
+          setBusinessSettings(settings)
+          // Update sender_id with business name if available
+          if (settings.businessName) {
+            setCampaignDetails((prev) => ({
+              ...prev,
+              sender_id: credentials?.senderId || settings.businessName.substring(0, 11),
+            }))
+          }
         }
       } catch (error) {
         console.error("Failed to load business settings:", error)
@@ -59,7 +78,7 @@ export default function NewCampaignPage() {
     }
 
     loadSettings()
-  }, [])
+  }, [credentials?.senderId])
 
   // Update sender_id when credentials change
   useEffect(() => {
@@ -95,6 +114,7 @@ export default function NewCampaignPage() {
   // Character count and SMS count
   const [charCount, setCharCount] = useState(0)
   const [smsCount, setSmsCount] = useState(0)
+  const [personalizationVars, setPersonalizationVars] = useState<string[]>([])
 
   // Update character count and SMS count
   const updateMessageStats = (message: string) => {
@@ -109,6 +129,10 @@ export default function NewCampaignPage() {
     } else {
       setSmsCount(Math.ceil(length / 153))
     }
+
+    // Extract personalization variables
+    const vars = extractPersonalizationVariables(message)
+    setPersonalizationVars(vars)
   }
 
   // Handle message change
@@ -141,10 +165,7 @@ export default function NewCampaignPage() {
 
       // Add more context if we have business settings
       if (businessSettings) {
-        prompt = `Generate a short, engaging SMS marketing campaign message for ${businessSettings.businessName}, a ${businessSettings.businessType} business. 
-        The message should reflect our brand voice and mention our products or services. 
-        Keep it under 160 characters to fit in a single SMS.
-        Include a clear call to action.`
+        prompt = `Generate a short, engaging SMS marketing campaign message for ${businessSettings.businessName}, a ${businessSettings.businessType} business. The message should reflect our brand voice and mention our products or services. Keep it under 160 characters to fit in a single SMS. Include a clear call to action. You can use personalization variables like {{name}} and {{phone}} in the message.`
       }
 
       const generatedText = await ai.generateContent({ prompt })
@@ -299,84 +320,6 @@ export default function NewCampaignPage() {
   const aiEnabled = ai.isConfigured
   console.log("AI status:", { aiEnabled, isConfigured, openrouterApiKey: credentials.openrouterApiKey })
 
-  // Add logic for handleSendNow and handleSchedule
-  const handleSendNow = async () => {
-    // Validate
-    if (!campaignDetails.name || !campaignDetails.message) {
-      toast({ title: "Missing info", description: "Please fill in all campaign details.", variant: "destructive" })
-      return
-    }
-    let recipientIds: string[] = []
-    if (audienceType === "all") {
-      const allContacts = await getContacts()
-      recipientIds = allContacts.map(c => c.id)
-    } else {
-      recipientIds = selectedContacts
-    }
-    if (recipientIds.length === 0) {
-      toast({ title: "No recipients", description: "Please select at least one contact.", variant: "destructive" })
-      return
-    }
-    // Fetch full contact info
-    const allContacts = await getContacts()
-    const recipients = allContacts.filter(c => recipientIds.includes(c.id))
-    // POST to /api/sms/bulk
-    const messages = recipients.map(c => ({
-      to: c.phone,
-      message: campaignDetails.message,
-      metadata: { contactId: c.id }
-    }))
-    const res = await fetch("/api/sms/bulk", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(messages)
-    })
-    if (res.ok) {
-      toast({ title: "Campaign sent", description: "Messages are being sent." })
-      router.push("/campaigns")
-    } else {
-      toast({ title: "Failed to send", description: "There was an error sending the campaign.", variant: "destructive" })
-    }
-  }
-
-  const handleSchedule = async () => {
-    // Validate
-    if (!campaignDetails.name || !campaignDetails.message || !scheduleDate || !scheduleTime) {
-      toast({ title: "Missing info", description: "Please fill in all campaign and schedule details.", variant: "destructive" })
-      return
-    }
-    let recipientIds: string[] = []
-    if (audienceType === "all") {
-      const allContacts = await getContacts()
-      recipientIds = allContacts.map(c => c.id)
-    } else {
-      recipientIds = selectedContacts
-    }
-    if (recipientIds.length === 0) {
-      toast({ title: "No recipients", description: "Please select at least one contact.", variant: "destructive" })
-      return
-    }
-    // Save campaign with schedule info and recipients
-    // (Assume you have a createScheduledCampaign API route or function)
-    const scheduledDateTime = `${scheduleDate}T${scheduleTime}`
-    const res = await fetch("/api/campaigns/schedule", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...campaignDetails,
-        status: "scheduled",
-        scheduled_date: scheduledDateTime,
-        recipientIds
-      })
-    })
-    if (res.ok) {
-      toast({ title: "Campaign scheduled", description: "Your campaign will be sent at the scheduled time." })
-      router.push("/campaigns")
-    } else {
-      toast({ title: "Failed to schedule", description: "There was an error scheduling the campaign.", variant: "destructive" })
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -391,7 +334,7 @@ export default function NewCampaignPage() {
         </TabsList>
 
         <TabsContent value="details">
-          <Card>
+          <Card className="max-h-[90vh] overflow-y-auto mx-auto my-8 w-full max-w-lg p-4">
             <CardHeader>
               <CardTitle>Campaign Information</CardTitle>
               <CardDescription>Enter the basic details for your campaign</CardDescription>
@@ -413,33 +356,66 @@ export default function NewCampaignPage() {
                   id="sender_id"
                   placeholder="N-SMS"
                   value={campaignDetails.sender_id}
-                  onChange={(e) => setCampaignDetails({ ...campaignDetails, sender_id: e.target.value })}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
                 />
-                <p className="text-xs text-gray-500">This is the name that will appear as the sender of your SMS</p>
+                <p className="text-xs text-gray-500">This sender ID is configured in your <Link href='/settings' className='underline'>settings</Link>.</p>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="message">Message</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateMessage}
-                    disabled={isGenerating || !aiEnabled}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="mr-2 h-4 w-4" />
-                        Generate with AI
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline" size="sm">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Personalization
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => {
+                          const textarea = document.getElementById('message') as HTMLTextAreaElement;
+                          if (!textarea) return;
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const text = textarea.value;
+                          const newText = text.substring(0, start) + '{{name}}' + text.substring(end);
+                          setCampaignDetails({ ...campaignDetails, message: newText });
+                          updateMessageStats(newText);
+                          setTimeout(() => { textarea.focus(); textarea.selectionEnd = start + 7; }, 0);
+                        }}>
+                          {{name}} - Contact Name
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          const textarea = document.getElementById('message') as HTMLTextAreaElement;
+                          if (!textarea) return;
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const text = textarea.value;
+                          const newText = text.substring(0, start) + '{{phone}}' + text.substring(end);
+                          setCampaignDetails({ ...campaignDetails, message: newText });
+                          updateMessageStats(newText);
+                          setTimeout(() => { textarea.focus(); textarea.selectionEnd = start + 8; }, 0);
+                        }}>
+                          {{phone}} - Phone Number
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button type="button" variant="outline" size="sm" onClick={handleGenerateMessage} disabled={isGenerating || !aiEnabled}>
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="mr-2 h-4 w-4" />
+                          Generate with AI
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <Textarea
                   id="message"
@@ -453,24 +429,27 @@ export default function NewCampaignPage() {
                   <p className="text-xs text-gray-500">SMS count: {smsCount}</p>
                 </div>
 
+                {personalizationVars.length > 0 && (
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Personalization Variables</AlertTitle>
+                    <AlertDescription>
+                      Your message contains the following personalization variables:
+                      {personalizationVars.map((v) => (
+                        <code key={v} className="mx-1 rounded bg-gray-100 px-1 py-0.5">
+                          {`{{${v}}}`}
+                        </code>
+                      ))}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {aiError && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Error</AlertTitle>
                     <AlertDescription>{aiError}</AlertDescription>
                   </Alert>
-                )}
-
-                {!aiEnabled && (
-                  <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
-                    <p>
-                      AI message generation requires OpenRouter API credentials. Please configure them in the{" "}
-                      <Link href="/settings" className="font-medium underline">
-                        settings
-                      </Link>{" "}
-                      page.
-                    </p>
-                  </div>
                 )}
               </div>
             </CardContent>
@@ -491,7 +470,7 @@ export default function NewCampaignPage() {
         </TabsContent>
 
         <TabsContent value="audience">
-          <Card>
+          <Card className="max-h-[90vh] overflow-y-auto mx-auto my-8 w-full max-w-lg p-4">
             <CardHeader>
               <CardTitle>Target Audience</CardTitle>
               <CardDescription>Select who will receive this campaign</CardDescription>
@@ -505,52 +484,45 @@ export default function NewCampaignPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Contacts</SelectItem>
-                    <SelectItem value="selected">Select Contacts</SelectItem>
+                    <SelectItem value="selected">Selected Contacts</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {audienceType === "selected" && (
-                <div>
+                <div className="space-y-2">
+                  <Label>Select Contacts</Label>
                   {loadingContacts ? (
-                    <Loader2 className="animate-spin" />
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
                   ) : (
-                    <div className="border rounded p-2 mt-2 max-h-64 overflow-y-auto">
-                      <div className="mb-2">
-                        <label className="inline-flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedContacts.length === contacts.length && contacts.length > 0}
-                            onChange={e => {
-                              if (e.target.checked) {
-                                setSelectedContacts(contacts.map(c => c.id))
-                              } else {
-                                setSelectedContacts([])
-                              }
-                            }}
-                          />
-                          <span className="ml-2 font-medium">Select All</span>
-                        </label>
-                      </div>
-                      {contacts.map(c => (
-                        <div key={c.id} className="flex items-center mb-1">
-                          <input
-                            type="checkbox"
-                            id={`contact-${c.id}`}
-                            checked={selectedContacts.includes(c.id)}
-                            onChange={e => {
-                              if (e.target.checked) {
-                                setSelectedContacts([...selectedContacts, c.id])
-                              } else {
-                                setSelectedContacts(selectedContacts.filter(id => id !== c.id))
-                              }
-                            }}
-                          />
-                          <label htmlFor={`contact-${c.id}`} className="ml-2 cursor-pointer">
-                            {c.name} ({c.phone})
-                          </label>
+                    <div className="max-h-[300px] overflow-y-auto rounded-md border p-4">
+                      {contacts.length === 0 ? (
+                        <div className="text-center text-gray-500">No contacts available</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {contacts.map((c) => (
+                            <div key={c.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`contact-${c.id}`}
+                                checked={selectedContacts.includes(c.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedContacts([...selectedContacts, c.id])
+                                  } else {
+                                    setSelectedContacts(selectedContacts.filter((id) => id !== c.id))
+                                  }
+                                }}
+                              />
+                              <label htmlFor={`contact-${c.id}`} className="cursor-pointer">
+                                {c.name} ({c.phone})
+                              </label>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
@@ -559,8 +531,8 @@ export default function NewCampaignPage() {
               <div className="rounded-md bg-gray-50 p-4">
                 <div className="font-medium">Audience Summary</div>
                 <div className="mt-2 text-sm text-gray-500">
-                  <p>Total recipients: Calculating...</p>
-                  <p>Estimated cost: Calculating...</p>
+                  <p>Total recipients: {audienceType === "all" ? contacts.length : selectedContacts.length}</p>
+                  <p>Estimated cost: {smsCount * (audienceType === "all" ? contacts.length : selectedContacts.length)} SMS</p>
                 </div>
               </div>
             </CardContent>
@@ -574,7 +546,7 @@ export default function NewCampaignPage() {
         </TabsContent>
 
         <TabsContent value="schedule">
-          <Card>
+          <Card className="max-h-[90vh] overflow-y-auto mx-auto my-8 w-full max-w-lg p-4">
             <CardHeader>
               <CardTitle>Schedule Campaign</CardTitle>
               <CardDescription>Choose when to send your campaign</CardDescription>

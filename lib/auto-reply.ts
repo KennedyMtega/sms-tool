@@ -3,6 +3,7 @@ import { createMessage } from "./message-service"
 import { getContact } from "./contact-service"
 import { getUserSettings } from "./settings-service"
 import { sendSMSServer } from "./nextsms-api"
+import { getUserCredentials } from "./credentials-service"
 
 export type AutoReplyOptions = {
   incomingMessage: string
@@ -87,6 +88,13 @@ export async function handleIncomingMessage(message: {
       return
     }
 
+    // Get credentials for sender ID
+    const { credentials } = await getUserCredentials()
+    if (!credentials.sender_id) {
+      console.error("No sender ID configured")
+      return
+    }
+
     // Generate auto-reply
     const autoReply = await generateAutoReply({
       incomingMessage: message.message,
@@ -104,7 +112,7 @@ export async function handleIncomingMessage(message: {
     // Send the auto-reply
     try {
       await sendSMSServer({
-        from: "BBASPA", // Use the default sender ID
+        from: credentials.sender_id,
         to: message.from,
         text: autoReply,
         auth: message.auth,

@@ -2,6 +2,16 @@ import { createClient } from "@/lib/supabase/server"
 import { Contact } from "./types"
 export type { Contact }
 
+export interface Contact {
+  id: string
+  name: string
+  firstName?: string
+  lastName?: string
+  phone: string
+  created_at: string
+  updated_at: string
+}
+
 export async function getContacts(): Promise<Contact[]> {
   const supabase = createClient()
 

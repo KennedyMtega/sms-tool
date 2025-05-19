@@ -5,7 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase-client"
 export async function POST(request: Request) {
   try {
     const { to, message, metadata } = await request.json()
-
+    // No sender_id from client; always use settings
     const smsResult = await sendSMS({
       to,
       message,
