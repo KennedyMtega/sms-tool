@@ -385,7 +385,7 @@ export default function NewCampaignPage() {
                           updateMessageStats(newText);
                           setTimeout(() => { textarea.focus(); textarea.selectionEnd = start + 7; }, 0);
                         }}>
-                          {{name}} - Contact Name
+                          <code>{"{{name}}"}</code> - Contact Name
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => {
                           const textarea = document.getElementById('message') as HTMLTextAreaElement;
@@ -398,7 +398,7 @@ export default function NewCampaignPage() {
                           updateMessageStats(newText);
                           setTimeout(() => { textarea.focus(); textarea.selectionEnd = start + 8; }, 0);
                         }}>
-                          {{phone}} - Phone Number
+                          <code>{"{{phone}}"}</code> - Phone Number
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
