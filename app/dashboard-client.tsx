@@ -86,11 +86,11 @@ export default function DashboardClient({
   const totalMessages = campaigns.reduce((sum, campaign) => sum + campaign.sent_count, 0)
   const deliveryRate =
     totalMessages > 0
-      ? Math.round((campaigns.reduce((sum, campaign) => sum + campaign.delivered_count, 0) / totalMessages) * 100)
+      ? Math.round((campaigns.reduce((sum, campaign) => sum + (campaign.delivered_count ?? 0), 0) / totalMessages) * 100)
       : 0
   const responseRate =
     totalMessages > 0
-      ? Math.round((campaigns.reduce((sum, campaign) => sum + campaign.response_count, 0) / totalMessages) * 100)
+      ? Math.round((campaigns.reduce((sum, campaign) => sum + (campaign.response_count ?? 0), 0) / totalMessages) * 100)
       : 0
 
   console.log("Dashboard credentials status:", { isConfigured, credentialsLoading, credentials })

@@ -164,7 +164,7 @@ export function CredentialsProvider({ children }: { children: ReactNode }) {
       const updated = { ...credentials, ...formattedCredentials };
 
       // Validate credentials
-      const hasNextsmsAuth = updated.nextsmsAuth && 
+      const hasNextsmsAuth = !!(updated.nextsmsAuth && 
         updated.nextsmsAuth.trim() !== "" && 
         updated.nextsmsAuth.startsWith("Basic ");
       
@@ -250,8 +250,8 @@ export function CredentialsProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("sms_marketing_credentials", JSON.stringify(updated))
 
       // Check if both required credentials are present and non-empty
-      const hasNextsmsAuth = updated.nextsmsAuth && updated.nextsmsAuth.trim() !== ""
-      const hasOpenrouterApiKey = updated.openrouterApiKey && updated.openrouterApiKey.trim() !== ""
+      const hasNextsmsAuth = !!(updated.nextsmsAuth && updated.nextsmsAuth.trim() !== "")
+      const hasOpenrouterApiKey = !!(updated.openrouterApiKey && updated.openrouterApiKey.trim() !== "")
       setIsConfigured(hasNextsmsAuth && hasOpenrouterApiKey)
 
       toast({

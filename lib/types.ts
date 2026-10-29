@@ -13,7 +13,7 @@ export interface Contact {
 
 export interface Message {
   id: string
-  contact_id: string
+  contact_id: string | null
   campaign_id: string | null
   message: string
   status: "sent" | "delivered" | "failed" | "received"

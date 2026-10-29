@@ -39,7 +39,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
 
   const recipient = {
     name: recipientMessages[0].contact?.name || "Unknown",
-    phone: recipientMessages[0].contact?.phone || recipientMessages[0].contact_id
+    phone: recipientMessages[0].contact?.phone ?? String(recipientMessages[0].contact_id ?? "")
   }
 
   return <ChatClient initialMessages={recipientMessages} recipient={recipient} params={params} />

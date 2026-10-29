@@ -13,19 +13,19 @@ export default async function Dashboard() {
   // Fetch all stats and config from Supabase
   const supabase = getSupabaseClient()
   // Fetch contacts
-  const { data: contacts = [] } = await supabase.from("contacts").select("id")
+  const { data: contacts } = await supabase.from("contacts").select("id")
   // Fetch campaigns
-  const { data: campaigns = [] } = await supabase.from("campaigns").select("id, status, sent_count, name")
+  const { data: campaigns } = await supabase.from("campaigns").select("id, status, sent_count, name")
   // Fetch messages
-  const { data: messages = [] } = await supabase.from("messages").select("id")
+  const { data: messages } = await supabase.from("messages").select("id")
   // Fetch user settings (for business name, etc.)
   const { data: settings } = await supabase.from("user_settings").select("business_name, slogan").single()
 
   // Calculate stats
-  const contactCount = contacts.length
-  const messageCount = messages.length
-  const activeCampaignCount = campaigns.filter((c: any) => c.status === "active").length
-  const recentCampaigns = campaigns.slice(-5).reverse()
+  const contactCount = (contacts ?? []).length
+  const messageCount = (messages ?? []).length
+  const activeCampaignCount = (campaigns ?? []).filter((c: any) => c.status === "active").length
+  const recentCampaigns = (campaigns ?? []).slice(-5).reverse()
 
   return (
     <div className="space-y-6">

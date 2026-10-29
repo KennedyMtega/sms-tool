@@ -12,10 +12,10 @@ export function CampaignPerformanceChart({ campaigns }: CampaignPerformanceChart
   // Transform campaign data for the chart
   const chartData = campaigns.map((campaign) => {
     const deliveryRate =
-      campaign.sent_count > 0 ? Math.round((campaign.delivered_count / campaign.sent_count) * 100) : 0
+      campaign.sent_count > 0 ? Math.round(((campaign.delivered_count ?? 0) / campaign.sent_count) * 100) : 0
 
     const responseRate =
-      campaign.delivered_count > 0 ? Math.round((campaign.response_count / campaign.delivered_count) * 100) : 0
+       (campaign.delivered_count ?? 0) > 0 ? Math.round(((campaign.response_count ?? 0) / (campaign.delivered_count ?? 0)) * 100) : 0
 
     return {
       name: campaign.name.length > 15 ? campaign.name.substring(0, 15) + "..." : campaign.name,
