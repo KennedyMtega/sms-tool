@@ -46,7 +46,7 @@ export default function DashboardClient({
 
   return (
     <div className="flex flex-col gap-5">
-      <WelcomeMessage businessName={userSettings.business_name} />
+      <WelcomeMessage businessName={userSettings.businessName} />
 
       <StatsCards
         totalContacts={totalContacts}

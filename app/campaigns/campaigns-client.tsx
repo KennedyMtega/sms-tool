@@ -203,8 +203,8 @@ export default function CampaignsClient({ initialCampaigns }: CampaignsClientPro
                       </Badge>
                     </TableCell>
                     <TableCell>{campaign.sent_count.toLocaleString()}</TableCell>
-                    <TableCell>{campaign.delivered_count.toLocaleString()}</TableCell>
-                    <TableCell>{campaign.response_count.toLocaleString()}</TableCell>
+                    <TableCell>{(campaign.delivered_count ?? 0).toLocaleString()}</TableCell>
+                    <TableCell>{(campaign.response_count ?? 0).toLocaleString()}</TableCell>
                     <TableCell>
                       {campaign.scheduled_date
                         ? format(new Date(campaign.scheduled_date), "yyyy-MM-dd HH:mm")

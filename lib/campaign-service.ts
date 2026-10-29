@@ -18,15 +18,20 @@ export type Campaign = {
   id: string
   name: string
   message: string
-  status: 'draft' | 'sending' | 'completed' | 'failed'
+  status: 'draft' | 'scheduled' | 'active' | 'sending' | 'paused' | 'completed' | 'failed'
+  sender_id?: string | null
+  scheduled_date?: string | null
   created_at: string
-  sent_at: string | null
-  total_contacts: number
+  updated_at?: string | null
+  sent_at?: string | null
+  total_contacts?: number
   sent_count: number
-  failed_count: number
+  delivered_count?: number
+  response_count?: number
+  failed_count?: number
 }
 
-export async function createCampaign(campaign: Omit<Campaign, 'id' | 'created_at' | 'sent_at' | 'total_contacts' | 'sent_count' | 'failed_count'>): Promise<Campaign> {
+export async function createCampaign(campaign: Partial<Campaign> & { name: string; message: string }): Promise<Campaign> {
   const { data, error } = await supabase
     .from('campaigns')
     .insert([{

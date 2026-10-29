@@ -86,13 +86,13 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
                 </div>
               </div>
               <div className="space-y-1 text-center">
-                <div className="text-3xl font-bold">{campaign.delivered_count.toLocaleString()}</div>
+                <div className="text-3xl font-bold">{(campaign.delivered_count ?? 0).toLocaleString()}</div>
                 <div className="text-xs text-gray-500 flex items-center justify-center">
                   <Calendar className="mr-1 h-3 w-3" /> Delivered
                 </div>
               </div>
               <div className="space-y-1 text-center">
-                <div className="text-3xl font-bold">{campaign.response_count.toLocaleString()}</div>
+                <div className="text-3xl font-bold">{(campaign.response_count ?? 0).toLocaleString()}</div>
                 <div className="text-xs text-gray-500 flex items-center justify-center">
                   <Users className="mr-1 h-3 w-3" /> Responses
                 </div>
@@ -103,7 +103,7 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               <div className="mb-2 flex justify-between text-xs text-gray-500">
                 <span>Delivery Rate</span>
                 <span>
-                  {campaign.sent_count > 0 ? Math.round((campaign.delivered_count / campaign.sent_count) * 100) : 0}%
+                  {campaign.sent_count > 0 ? Math.round(((campaign.delivered_count ?? 0) / campaign.sent_count) * 100) : 0}%
                 </span>
               </div>
               <div className="h-2 w-full rounded-full bg-gray-100">
@@ -111,7 +111,7 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
                   className="h-2 rounded-full bg-green-500"
                   style={{
                     width: `${
-                      campaign.sent_count > 0 ? Math.round((campaign.delivered_count / campaign.sent_count) * 100) : 0
+                      campaign.sent_count > 0 ? Math.round(((campaign.delivered_count ?? 0) / campaign.sent_count) * 100) : 0
                     }%`,
                   }}
                 />
@@ -122,8 +122,8 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
               <div className="mb-2 flex justify-between text-xs text-gray-500">
                 <span>Response Rate</span>
                 <span>
-                  {campaign.delivered_count > 0
-                    ? Math.round((campaign.response_count / campaign.delivered_count) * 100)
+                  { (campaign.delivered_count ?? 0) > 0
+                    ? Math.round(((campaign.response_count ?? 0) / (campaign.delivered_count ?? 0)) * 100)
                     : 0}
                   %
                 </span>
@@ -133,8 +133,8 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
                   className="h-2 rounded-full bg-blue-500"
                   style={{
                     width: `${
-                      campaign.delivered_count > 0
-                        ? Math.round((campaign.response_count / campaign.delivered_count) * 100)
+                       (campaign.delivered_count ?? 0) > 0
+                        ? Math.round(((campaign.response_count ?? 0) / (campaign.delivered_count ?? 0)) * 100)
                         : 0
                     }%`,
                   }}

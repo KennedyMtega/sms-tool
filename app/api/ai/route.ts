@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
     // If not provided in the request, get from cookies
     if (!openrouterApiKey) {
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       const credentialsCookie = cookieStore.get("sms_marketing_credentials")
 
       if (credentialsCookie) {

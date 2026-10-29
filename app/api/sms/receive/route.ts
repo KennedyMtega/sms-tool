@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const { message, from, to } = await req.json()
 
     // Get credentials from cookies
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const credentialsCookie = cookieStore.get("sms_marketing_credentials")
     let auth = ""
     let openrouterApiKey = ""
