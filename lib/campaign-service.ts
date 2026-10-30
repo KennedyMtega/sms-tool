@@ -1,18 +1,27 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { sendSMSServer } from './nextsms-api'
 import { getUserCredentials } from './credentials-service'
 import { getContacts } from './contact-service'
 import { createMessage } from './message-service'
 import type { Database } from "@/types/supabase"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+let supabaseInstance: SupabaseClient<Database> | null = null
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase credentials')
+// Lazily create the Supabase client so that importing this module never throws
+// at build time (e.g. when env vars are not available during `next build`).
+function getSupabase(): SupabaseClient<Database> {
+  if (supabaseInstance) return supabaseInstance
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase credentials')
+  }
+
+  supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey)
+  return supabaseInstance
 }
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export type Campaign = {
   id: string
@@ -32,7 +41,7 @@ export type Campaign = {
 }
 
 export async function createCampaign(campaign: Partial<Campaign> & { name: string; message: string }): Promise<Campaign> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('campaigns')
     .insert([{
       ...campaign,
@@ -56,7 +65,7 @@ export async function sendCampaign(campaignId: string): Promise<void> {
     }
 
     // Get campaign details
-    const { data: campaign, error: campaignError } = await supabase
+    const { data: campaign, error: campaignError } = await getSupabase()
       .from('campaigns')
       .select('*')
       .eq('id', campaignId)
@@ -66,7 +75,7 @@ export async function sendCampaign(campaignId: string): Promise<void> {
     if (!campaign) throw new Error('Campaign not found')
 
     // Update campaign status to sending
-    await supabase
+    await getSupabase()
       .from('campaigns')
       .update({ status: 'sending' })
       .eq('id', campaignId)
@@ -76,7 +85,7 @@ export async function sendCampaign(campaignId: string): Promise<void> {
     const totalContacts = contacts.length
 
     // Update total contacts count
-    await supabase
+    await getSupabase()
       .from('campaigns')
       .update({ total_contacts: totalContacts })
       .eq('id', campaignId)
@@ -121,7 +130,7 @@ export async function sendCampaign(campaignId: string): Promise<void> {
       }
 
       // Update campaign progress
-      await supabase
+      await getSupabase()
         .from('campaigns')
         .update({
           sent_count: sentCount,
@@ -131,7 +140,7 @@ export async function sendCampaign(campaignId: string): Promise<void> {
     }
 
     // Update campaign status to completed
-    await supabase
+    await getSupabase()
       .from('campaigns')
       .update({
         status: 'completed',
@@ -140,7 +149,7 @@ export async function sendCampaign(campaignId: string): Promise<void> {
       .eq('id', campaignId)
   } catch (error) {
     // Update campaign status to failed
-    await supabase
+    await getSupabase()
       .from('campaigns')
       .update({ status: 'failed' })
       .eq('id', campaignId)
@@ -149,7 +158,7 @@ export async function sendCampaign(campaignId: string): Promise<void> {
 }
 
 export async function getCampaigns(): Promise<Campaign[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('campaigns')
     .select('*')
     .order('created_at', { ascending: false })
@@ -159,7 +168,7 @@ export async function getCampaigns(): Promise<Campaign[]> {
 }
 
 export async function getCampaign(id: string): Promise<Campaign | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('campaigns')
     .select('*')
     .eq('id', id)
