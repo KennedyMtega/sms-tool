@@ -1,20 +1,30 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { sendSMSServer } from './nextsms-api'
 import { getUserCredentials } from './credentials-service'
 import { Message } from "./types"
+import type { Database } from "@/types/supabase"
 export type { Message }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+let supabaseInstance: SupabaseClient<Database> | null = null
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase credentials')
+// Lazily create the Supabase client so that importing this module never throws
+// at build time (e.g. when env vars are not available during `next build`).
+function getSupabase(): SupabaseClient<Database> {
+  if (supabaseInstance) return supabaseInstance
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase credentials')
+  }
+
+  supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey)
+  return supabaseInstance
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
 export async function getMessages(contactId?: string): Promise<Message[]> {
-  let query = supabase
+  let query = getSupabase()
     .from('messages')
     .select('*')
     .order('created_at', { ascending: false })
@@ -29,7 +39,7 @@ export async function getMessages(contactId?: string): Promise<Message[]> {
 }
 
 export async function getMessage(id: string): Promise<Message | null> {
-  const { data: message, error } = await supabase
+  const { data: message, error } = await getSupabase()
     .from("messages")
     .select(`
       *,
@@ -52,7 +62,7 @@ export async function getMessage(id: string): Promise<Message | null> {
 
 export async function getRecentMessages(limit = 5): Promise<Message[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("messages")
       .select("*, contact:contact_id(name, phone)")
       .order("created_at", { ascending: false })
@@ -73,7 +83,7 @@ export async function getRecentMessages(limit = 5): Promise<Message[]> {
 }
 
 export async function createMessage(message: Omit<Message, 'id' | 'created_at'>): Promise<Message> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('messages')
     .insert([message])
     .select()
@@ -118,7 +128,7 @@ export async function sendMessage(message: Omit<Message, 'id' | 'created_at'>): 
 
 // Fetch only the latest message per recipient, paginated, with contact info
 export async function getConversations({ limit = 20, offset = 0 } = {}): Promise<any[]> {
-  const { data, error } = await supabase.rpc('latest_messages_per_contact', { limit_param: limit, offset_param: offset })
+  const { data, error } = await getSupabase().rpc('latest_messages_per_contact', { limit_param: limit, offset_param: offset })
 
   if (error) {
     console.error("Error fetching conversations:", error)
@@ -132,7 +142,7 @@ export async function getConversations({ limit = 20, offset = 0 } = {}): Promise
 }
 
 export async function getCampaignMessages(campaignId: string): Promise<Message[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('messages')
     .select('*')
     .eq('campaign_id', campaignId)

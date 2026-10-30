@@ -8,13 +8,14 @@ export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 interface MessagePageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function MessagePage({ params }: MessagePageProps) {
-  const message = await getMessage(params.id)
+  const { id } = await params
+  const message = await getMessage(id)
   
   if (!message) {
     notFound()

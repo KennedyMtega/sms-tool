@@ -164,12 +164,16 @@ export function CredentialsProvider({ children }: { children: ReactNode }) {
       const updated = { ...credentials, ...formattedCredentials };
 
       // Validate credentials
-      const hasNextsmsAuth = !!(updated.nextsmsAuth && 
-        updated.nextsmsAuth.trim() !== "" && 
-        updated.nextsmsAuth.startsWith("Basic ");
-      
-      const hasOpenrouterApiKey = updated.openrouterApiKey && 
-        updated.openrouterApiKey.trim() !== "";
+      const hasNextsmsAuth = !!(
+        updated.nextsmsAuth &&
+        updated.nextsmsAuth.trim() !== "" &&
+        updated.nextsmsAuth.startsWith("Basic ")
+      );
+
+      const hasOpenrouterApiKey = !!(
+        updated.openrouterApiKey &&
+        updated.openrouterApiKey.trim() !== ""
+      );
 
       const newIsConfigured = hasNextsmsAuth && hasOpenrouterApiKey;
 

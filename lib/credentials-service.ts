@@ -1,13 +1,23 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from "@/types/supabase"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+let supabaseInstance: SupabaseClient<Database> | null = null
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase credentials')
+// Lazily create the Supabase client so that importing this module never throws
+// at build time (e.g. when env vars are not available during `next build`).
+function getSupabase(): SupabaseClient<Database> {
+  if (supabaseInstance) return supabaseInstance
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase credentials')
+  }
+
+  supabaseInstance = createClient<Database>(supabaseUrl, supabaseAnonKey)
+  return supabaseInstance
 }
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export type Credentials = {
   sender_id: string
@@ -15,7 +25,7 @@ export type Credentials = {
 }
 
 export async function getUserCredentials(): Promise<{ credentials: Credentials }> {
-  const { data: settings, error } = await supabase
+  const { data: settings, error } = await getSupabase()
     .from('user_settings')
     .select('sender_id, api_key')
     .single()

@@ -7,9 +7,14 @@ import { ArrowLeft, Calendar, MessageSquare, Users } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 
-export default async function CampaignDetailPage({ params }: { params: { id: string } }) {
+export default async function CampaignDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   // Fetch campaign on the server
-  const campaign = await getCampaign(params.id)
+  const { id } = await params
+  const campaign = await getCampaign(id)
 
   if (!campaign) {
     notFound()

@@ -12,11 +12,16 @@ import ChatClient from "./ChatClient"
 
 export const dynamic = "force-dynamic"
 
-export default async function ChatPage({ params }: { params: { id: string } }) {
+export default async function ChatPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
   const allMessages = await getMessages()
   // Filter messages for this recipient
   const recipientMessages: Message[] = allMessages.filter(message => 
-    message.contact?.id === params.id || message.contact_id === params.id
+    message.contact?.id === id || message.contact_id === id
   ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
   if (recipientMessages.length === 0) {
@@ -42,5 +47,5 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     phone: recipientMessages[0].contact?.phone ?? String(recipientMessages[0].contact_id ?? "")
   }
 
-  return <ChatClient initialMessages={recipientMessages} recipient={recipient} params={params} />
+  return <ChatClient initialMessages={recipientMessages} recipient={recipient} params={{ id }} />
 } 
